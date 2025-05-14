@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "958914339335",
+    "project_id": "takrawthrill",
+    "storage_bucket": "takrawthrill.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:958914339335:android:1ea009646c7c21879000a2",
+        "android_client_info": {
+          "package_name": "com.example.fyp_4"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDdddcVX11WarqQiIx-CiJzAmsfkKptcz4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
