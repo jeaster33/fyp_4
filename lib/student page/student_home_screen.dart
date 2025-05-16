@@ -1,11 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'splash_screen.dart';
+import '../authentication page/splash_screen.dart';
 
 // Import these new pages (you'll need to create them)
-import 'student page/profile_page.dart';
-import 'student page/performance_page.dart';
-import 'student page/calendar_page.dart';
+import 'profile_page.dart';
+import 'performance_page.dart';
+import 'calendar_page.dart';
 
 class StudentHomeScreen extends StatelessWidget {
   const StudentHomeScreen({super.key});
