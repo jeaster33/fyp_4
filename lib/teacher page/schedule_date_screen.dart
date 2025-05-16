@@ -4,12 +4,22 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ScheduleDateScreen extends StatefulWidget {
   final String userId;
-  final bool isCoach;
+  final String? existingSessionId; // For editing existing sessions
+  final String? existingTitle;
+  final String? existingDescription;
+  final DateTime? existingDate;
+  final TimeOfDay? existingStartTime;
+  final TimeOfDay? existingEndTime;
 
   const ScheduleDateScreen({
     Key? key, 
-    required this.userId, 
-    this.isCoach = false,
+    required this.userId,
+    this.existingSessionId,
+    this.existingTitle,
+    this.existingDescription,
+    this.existingDate,
+    this.existingStartTime,
+    this.existingEndTime,
   }) : super(key: key);
 
   @override
@@ -17,14 +27,33 @@ class ScheduleDateScreen extends StatefulWidget {
 }
 
 class _ScheduleDateScreenState extends State<ScheduleDateScreen> {
-  DateTime selectedDate = DateTime.now();
-  TimeOfDay startTime = TimeOfDay.now();
-  TimeOfDay endTime = TimeOfDay(hour: TimeOfDay.now().hour + 1, minute: TimeOfDay.now().minute);
-  final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();
+  late DateTime selectedDate;
+  late TimeOfDay startTime;
+  late TimeOfDay endTime;
+  late TextEditingController _titleController;
+  late TextEditingController _descriptionController;
   
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   bool _isLoading = false;
+  bool _isEditMode = false;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // Check if we're in edit mode
+    _isEditMode = widget.existingSessionId != null;
+    
+    // Initialize controllers with existing data if in edit mode
+    _titleController = TextEditingController(text: widget.existingTitle ?? '');
+    _descriptionController = TextEditingController(text: widget.existingDescription ?? '');
+    
+    // Initialize date and time fields
+    selectedDate = widget.existingDate ?? DateTime.now();
+    startTime = widget.existingStartTime ?? TimeOfDay.now();
+    endTime = widget.existingEndTime ?? 
+              TimeOfDay(hour: (TimeOfDay.now().hour + 1) % 24, minute: TimeOfDay.now().minute);
+  }
 
   @override
   void dispose() {
@@ -37,7 +66,7 @@ class _ScheduleDateScreenState extends State<ScheduleDateScreen> {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: selectedDate,
-      firstDate: DateTime.now(),
+      firstDate: DateTime.now().subtract(Duration(days: 365)), // Allow selecting past dates for editing
       lastDate: DateTime(2030),
       builder: (context, child) {
         return Theme(
@@ -75,10 +104,17 @@ class _ScheduleDateScreenState extends State<ScheduleDateScreen> {
     if (picked != null && picked != startTime) {
       setState(() {
         startTime = picked;
-        // Automatically set end time 1 hour after start time
-        endTime = TimeOfDay(hour: (picked.hour + 1) % 24, minute: picked.minute);
+        // Automatically adjust end time if it would be before start time
+        if (_timeToDouble(endTime) <= _timeToDouble(picked)) {
+          endTime = TimeOfDay(hour: (picked.hour + 1) % 24, minute: picked.minute);
+        }
       });
     }
+  }
+
+  // Helper to convert TimeOfDay to a comparable double
+  double _timeToDouble(TimeOfDay time) {
+    return time.hour + time.minute/60.0;
   }
 
   Future<void> _selectEndTime(BuildContext context) async {
@@ -111,24 +147,12 @@ class _ScheduleDateScreenState extends State<ScheduleDateScreen> {
       return;
     }
 
-    // Check if end time is after start time
-    final now = DateTime.now();
-    final startDateTime = DateTime(
-      selectedDate.year,
-      selectedDate.month,
-      selectedDate.day,
-      startTime.hour,
-      startTime.minute,
-    );
-    final endDateTime = DateTime(
-      selectedDate.year,
-      selectedDate.month,
-      selectedDate.day,
-      endTime.hour,
-      endTime.minute,
-    );
+    // Format times to ensure they're consistently stored
+    final formattedStartTime = '${startTime.hour.toString().padLeft(2, '0')}:${startTime.minute.toString().padLeft(2, '0')}';
+    final formattedEndTime = '${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}';
 
-    if (endDateTime.isBefore(startDateTime)) {
+    // Check if end time is after start time using formatted strings for comparison
+    if (formattedEndTime.compareTo(formattedStartTime) <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('End time must be after start time')),
       );
@@ -140,33 +164,51 @@ class _ScheduleDateScreenState extends State<ScheduleDateScreen> {
     });
 
     try {
-      // Generate a unique session ID
-      final sessionId = _firestore.collection('training_sessions').doc().id;
+      if (_isEditMode) {
+        // Update existing session
+        await _firestore.collection('training_sessions').doc(widget.existingSessionId).update({
+          'title': _titleController.text,
+          'description': _descriptionController.text,
+          'date': Timestamp.fromDate(selectedDate),
+          'startTime': formattedStartTime,
+          'endTime': formattedEndTime,
+          'updatedAt': FieldValue.serverTimestamp(),
+          // Don't update createdBy, createdAt, or attendees
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Session updated successfully')),
+        );
+      } else {
+        // Create new session
+        final sessionId = _firestore.collection('training_sessions').doc().id;
+        
+        await _firestore.collection('training_sessions').doc(sessionId).set({
+          'title': _titleController.text,
+          'description': _descriptionController.text,
+          'date': Timestamp.fromDate(selectedDate),
+          'startTime': formattedStartTime,
+          'endTime': formattedEndTime,
+          'createdBy': widget.userId,
+          'createdAt': FieldValue.serverTimestamp(),
+          'attendees': [widget.userId], // Auto-add creator to attendees
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Session scheduled successfully')),
+        );
+
+        // Clear form after creating (but not after editing)
+        _titleController.clear();
+        _descriptionController.clear();
+      }
       
-      // Create the session document
-      await _firestore.collection('training_sessions').doc(sessionId).set({
-        'title': _titleController.text,
-        'description': _descriptionController.text,
-        'date': Timestamp.fromDate(selectedDate),
-        'startTime': '${startTime.hour}:${startTime.minute}',
-        'endTime': '${endTime.hour}:${endTime.minute}',
-        'createdBy': widget.userId,
-        'isCoachSession': widget.isCoach,
-        'createdAt': FieldValue.serverTimestamp(),
-        'attendees': [],
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Session scheduled successfully')),
-      );
-
-      // Clear form
-      _titleController.clear();
-      _descriptionController.clear();
+      // Navigate back after saving
+      Navigator.pop(context);
       
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error scheduling session: $e')),
+        SnackBar(content: Text('Error saving session: $e')),
       );
     } finally {
       setState(() {
@@ -181,7 +223,7 @@ class _ScheduleDateScreenState extends State<ScheduleDateScreen> {
     
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isCoach ? 'Schedule Training Session' : 'Schedule Game'),
+        title: Text(_isEditMode ? 'Edit Session' : 'Create New Session'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
@@ -190,8 +232,8 @@ class _ScheduleDateScreenState extends State<ScheduleDateScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Create New Schedule',
+            Text(
+              _isEditMode ? 'Update Session Details' : 'Create New Schedule',
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -276,8 +318,8 @@ class _ScheduleDateScreenState extends State<ScheduleDateScreen> {
                 ),
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text(
-                        'Schedule Session',
+                    : Text(
+                        _isEditMode ? 'Update Session' : 'Schedule Session',
                         style: TextStyle(fontSize: 16),
                       ),
               ),
