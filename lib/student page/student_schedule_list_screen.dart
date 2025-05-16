@@ -1,21 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'schedule_date_screen.dart';
 
-class ScheduleListScreen extends StatefulWidget {
+class StudentScheduleListScreen extends StatefulWidget {
   final String userId;
 
-  const ScheduleListScreen({
+  const StudentScheduleListScreen({
     Key? key,
     required this.userId,
   }) : super(key: key);
 
   @override
-  _ScheduleListScreenState createState() => _ScheduleListScreenState();
+  _StudentScheduleListScreenState createState() => _StudentScheduleListScreenState();
 }
 
-class _ScheduleListScreenState extends State<ScheduleListScreen> {
+class _StudentScheduleListScreenState extends State<StudentScheduleListScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   bool _isLoading = true;
 
@@ -23,7 +22,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Scheduled Sessions'),
+        title: Text('Training Schedule'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
@@ -32,7 +31,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(
-              'All Sessions',
+              'Upcoming Sessions',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -41,7 +40,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
           ),
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              // Simple query without filters to avoid index errors
+              // Simple query without filters
               stream: _firestore
                   .collection('training_sessions')
                   .orderBy('date', descending: false)
@@ -113,8 +112,14 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                             final startTime = session['startTime'] ?? '';
                             final endTime = session['endTime'] ?? '';
                             
+                            // Check if this session is today or in the future
+                            final sessionDate = (session['date'] as Timestamp).toDate();
+                            final isUpcoming = sessionDate.isAfter(DateTime.now().subtract(Duration(days: 1)));
+                            
                             return Card(
                               margin: EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+                              // Add a slight color change for upcoming sessions
+                              color: isUpcoming ? Colors.blue.shade50 : null,
                               child: ListTile(
                                 contentPadding: EdgeInsets.all(16.0),
                                 title: Text(
@@ -139,20 +144,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                                     ),
                                   ],
                                 ),
-                                // Add edit and delete buttons for everyone
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: Icon(Icons.edit, color: Colors.blue),
-                                      onPressed: () => _editSession(session, sessionId),
-                                    ),
-                                    IconButton(
-                                      icon: Icon(Icons.delete, color: Colors.red),
-                                      onPressed: () => _confirmDeleteSession(sessionId),
-                                    ),
-                                  ],
-                                ),
+                                // No edit or delete buttons for students
                                 onTap: () => _showSessionDetails(session, sessionId),
                               ),
                             );
@@ -166,20 +158,6 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
             ),
           ),
         ],
-      ),
-      // Everyone gets the add button
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => ScheduleDateScreen(
-                userId: widget.userId,
-              ),
-            ),
-          );
-        },
-        backgroundColor: Colors.blue,
-        child: Icon(Icons.add),
       ),
     );
   }
@@ -243,38 +221,47 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                 style: TextStyle(fontSize: 16),
               ),
               SizedBox(height: 20),
-              // Actions row - Edit and Delete buttons
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => _editSession(session, sessionId),
-                      icon: Icon(Icons.edit),
-                      label: Text('Edit Session'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
+              // Show coach/creator information if available
+              if (session['createdBy'] != null) ...[
+                Text(
+                  'Created by:',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(context); // Close bottom sheet
-                        _confirmDeleteSession(sessionId);
-                      },
-                      icon: Icon(Icons.delete),
-                      label: Text('Delete Session'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
+                ),
+                SizedBox(height: 8),
+                FutureBuilder<String>(
+                  future: _getCreatorName(session['createdBy']),
+                  builder: (context, snapshot) {
+                    return Text(
+                      snapshot.data ?? 'Coach',
+                      style: TextStyle(fontSize: 16),
+                    );
+                  },
+                ),
+                SizedBox(height: 20),
+              ],
+              // Add to Calendar button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    // This is a placeholder for calendar integration
+                    // Here you could add functionality to add to device calendar
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Session added to your calendar')),
+                    );
+                    Navigator.pop(context);
+                  },
+                  icon: Icon(Icons.calendar_month),
+                  label: Text('Add to My Calendar'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: 12),
                   ),
-                ],
+                ),
               ),
             ],
           ),
@@ -283,74 +270,10 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
     );
   }
 
-  // Helper method to parse time string to TimeOfDay
-  TimeOfDay _parseTimeOfDay(String timeString) {
-    try {
-      final parts = timeString.split(':');
-      return TimeOfDay(
-        hour: int.parse(parts[0]), 
-        minute: int.parse(parts[1])
-      );
-    } catch (e) {
-      // Return default time if parsing fails
-      return TimeOfDay.now();
-    }
-  }
-
-  // Method to navigate to edit session page
-  void _editSession(Map<String, dynamic> session, String sessionId) {
-    // Navigate to edit screen with existing data
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ScheduleDateScreen(
-          userId: widget.userId,
-          existingSessionId: sessionId,
-          existingTitle: session['title'],
-          existingDescription: session['description'],
-          existingDate: (session['date'] as Timestamp).toDate(),
-          existingStartTime: _parseTimeOfDay(session['startTime'] ?? '00:00'),
-          existingEndTime: _parseTimeOfDay(session['endTime'] ?? '00:00'),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _confirmDeleteSession(String sessionId) async {
-    return showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Delete Session'),
-          content: Text('Are you sure you want to delete this session?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                _deleteSession(sessionId);
-                Navigator.of(context).pop();
-              },
-              child: Text('Delete', style: TextStyle(color: Colors.red)),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _deleteSession(String sessionId) async {
-    try {
-      await _firestore.collection('training_sessions').doc(sessionId).delete();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Session deleted successfully')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error deleting session: $e')),
-      );
-    }
+  // Helper method to get creator name - in a real app this would fetch from Firestore
+  Future<String> _getCreatorName(String userId) async {
+    // You could implement a real lookup to get the user's name
+    // For now, just return a placeholder
+    return 'Coach';
   }
 }

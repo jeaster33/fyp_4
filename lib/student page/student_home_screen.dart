@@ -5,7 +5,8 @@ import '../authentication page/splash_screen.dart';
 // Import these new pages (you'll need to create them)
 import 'profile_page.dart';
 import 'performance_page.dart';
-import 'calendar_page.dart';
+import 'student_schedule_list_screen.dart';
+
 
 class StudentHomeScreen extends StatelessWidget {
   const StudentHomeScreen({super.key});
@@ -137,9 +138,13 @@ class StudentHomeScreen extends StatelessWidget {
                     color: Colors.green,
                     onTap: () {
                       Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => CalendarPage()),
-                      );
+  context,
+  MaterialPageRoute(
+    builder: (context) => StudentScheduleListScreen(
+      userId: user?.uid ?? '',
+    ),
+  ),
+);
                     },
                   ),
                   
