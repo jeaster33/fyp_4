@@ -6,19 +6,19 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 
-class ProfilePage extends StatefulWidget {
+class TeacherProfilePage extends StatefulWidget {
   final Function? onProfileUpdated;
   
-  const ProfilePage({
+  const TeacherProfilePage({
     Key? key,
     this.onProfileUpdated,
   }) : super(key: key);
 
   @override
-  _ProfilePageState createState() => _ProfilePageState();
+  _TeacherProfilePageState createState() => _TeacherProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage> {
+class _TeacherProfilePageState extends State<TeacherProfilePage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
@@ -35,12 +35,14 @@ class _ProfilePageState extends State<ProfilePage> {
   String _secondaryEmail = '';
   DateTime? _dateOfBirth;
   String _profileImageUrl = '';
-  String _role = 'student';
+  String _role = 'teacher';
+  String _specialization = '';
   
   // Controllers for editing
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _phoneNumberController = TextEditingController();
   final TextEditingController _secondaryEmailController = TextEditingController();
+  final TextEditingController _specializationController = TextEditingController();
   
   @override
   void initState() {
@@ -71,7 +73,8 @@ class _ProfilePageState extends State<ProfilePage> {
             _phoneNumber = data['phoneNumber'] ?? '';
             _secondaryEmail = data['secondaryEmail'] ?? '';
             _profileImageUrl = data['profileImageUrl'] ?? '';
-            _role = data['role'] ?? 'student';
+            _role = data['role'] ?? 'teacher';
+            _specialization = data['specialization'] ?? 'Sepak Takraw Coach';
             
             // Convert Firestore timestamp to DateTime
             if (data['dateOfBirth'] != null) {
@@ -82,6 +85,7 @@ class _ProfilePageState extends State<ProfilePage> {
             _fullNameController.text = _fullName;
             _phoneNumberController.text = _phoneNumber;
             _secondaryEmailController.text = _secondaryEmail;
+            _specializationController.text = _specialization;
           });
         }
       }
@@ -164,11 +168,12 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       String uid = _auth.currentUser?.uid ?? '';
       
-      // Update only the editable fields
+      // Update user profile
       await _firestore.collection('users').doc(uid).update({
         'fullName': _fullNameController.text,
         'phoneNumber': _phoneNumberController.text,
         'secondaryEmail': _secondaryEmailController.text,
+        'specialization': _specializationController.text,
       });
       
       // Update local state
@@ -176,6 +181,7 @@ class _ProfilePageState extends State<ProfilePage> {
         _fullName = _fullNameController.text;
         _phoneNumber = _phoneNumberController.text;
         _secondaryEmail = _secondaryEmailController.text;
+        _specialization = _specializationController.text;
         _isEditingProfile = false;
       });
       
@@ -204,6 +210,7 @@ class _ProfilePageState extends State<ProfilePage> {
     _fullNameController.dispose();
     _phoneNumberController.dispose();
     _secondaryEmailController.dispose();
+    _specializationController.dispose();
     super.dispose();
   }
 
@@ -211,7 +218,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('My Profile'),
+        title: Text('Coach Profile'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         actions: [
@@ -305,8 +312,11 @@ class _ProfilePageState extends State<ProfilePage> {
                           _isEditingProfile
                               ? _buildEditableField('Full Name', _fullNameController)
                               : _buildProfileField('Full Name', _fullName),
-                          _buildProfileField('Username', '$_username'),
+                          _buildProfileField('Username', _username),
                           _buildProfileField('Email', _email),
+                          _isEditingProfile
+                              ? _buildEditableField('Specialization', _specializationController)
+                              : _buildProfileField('Specialization', _specialization),
                           _isEditingProfile
                               ? _buildEditableField('Phone Number', _phoneNumberController)
                               : _buildProfileField('Phone Number', _phoneNumber),
@@ -330,6 +340,50 @@ class _ProfilePageState extends State<ProfilePage> {
                   
                   SizedBox(height: 24),
                   
+                  // Coach Statistics Card
+                  if (!_isEditingProfile) 
+                    Card(
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Coaching Statistics',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue,
+                              ),
+                            ),
+                            Divider(),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _buildStatItem('12', 'Sessions'),
+                                _buildStatItem('8', 'Students'),
+                                _buildStatItem('3', 'Upcoming'),
+                              ],
+                            ),
+                            SizedBox(height: 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _buildStatItem('98%', 'Attendance'),
+                                _buildStatItem('85%', 'Progress'),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  
+                  SizedBox(height: 24),
+                  
                   // Save/Cancel buttons when editing
                   if (_isEditingProfile)
                     Row(
@@ -342,6 +396,7 @@ class _ProfilePageState extends State<ProfilePage> {
                               _fullNameController.text = _fullName;
                               _phoneNumberController.text = _phoneNumber;
                               _secondaryEmailController.text = _secondaryEmail;
+                              _specializationController.text = _specialization;
                               _isEditingProfile = false;
                             });
                           },
@@ -405,6 +460,28 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ),
       ),
+    );
+  }
+  
+  Widget _buildStatItem(String value, String label) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: Colors.blue,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey.shade600,
+          ),
+        ),
+      ],
     );
   }
 }

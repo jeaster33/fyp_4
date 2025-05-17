@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'login_screen.dart';
 import 'home_screen.dart';
-import '../admin_screen.dart';
+import 'admin_screen.dart';
 import '../student page/student_home_screen.dart';
 import '../teacher page/teacher_home_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
