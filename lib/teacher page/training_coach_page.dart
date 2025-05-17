@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import '../Training Tool/training_type.dart';
 
 class TrainingWelcomePage extends StatelessWidget {
   final String userName;
+  final String userId;
   
   const TrainingWelcomePage({
     Key? key, 
     this.userName = '',
+    required this.userId,
   }) : super(key: key);
 
   @override
@@ -51,7 +54,7 @@ class TrainingWelcomePage extends StatelessWidget {
                 Text(
                   userName.isNotEmpty 
                       ? 'Hi $userName,' 
-                      : 'Hi,',
+                      : 'Hi Coach,',
                   style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -63,7 +66,7 @@ class TrainingWelcomePage extends StatelessWidget {
                 
                 // Main welcome message
                 const Text(
-                  'Welcome to Training Page',
+                  'Welcome to Training Module',
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
@@ -74,28 +77,9 @@ class TrainingWelcomePage extends StatelessWidget {
                 
                 const SizedBox(height: 24),
                 
-                // Coming soon text
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.shade200,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    'COMING SOON',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.deepOrange,
-                    ),
-                  ),
-                ),
-                
-                const SizedBox(height: 24),
-                
                 // Description
                 const Text(
-                  'Our training module will help coaches create personalized training plans, track player progress, and provide detailed recommendations.',
+                  'Design customized training plans, track player progress, and provide detailed recommendations for your Sepak Takraw team.',
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.black54,
@@ -125,32 +109,39 @@ class TrainingWelcomePage extends StatelessWidget {
                 
                 const SizedBox(height: 40),
                 
-                // Notify button
-                OutlinedButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('You\'ll be notified when the Training feature is available!'),
-                        backgroundColor: Colors.green,
+                // Get Started button
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => TrainingTypesPage(
+                            userId: userId,
+                            displayName: userName,
+                          ),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 40,
+                        vertical: 16,
                       ),
-                    );
-                  },
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: Colors.green.shade700, width: 2),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 40,
-                      vertical: 16,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
                     ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                  ),
-                  child: const Text(
-                    'Notify Me When Available',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
+                    child: const Text(
+                      'Browse Training Types',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),

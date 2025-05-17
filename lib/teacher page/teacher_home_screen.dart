@@ -1,9 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../Game tool/ScoreboardPage.dart';
+import '../Training Tool/training_type.dart';
 import '../authentication page/splash_screen.dart';
 import 'calender_coach_screen.dart';
-import 'training_coach_page.dart';
 import 'schedule_date_screen.dart';
 
 class TeacherHomeScreen extends StatelessWidget {
@@ -94,7 +94,7 @@ class TeacherHomeScreen extends StatelessWidget {
                       );
                     },
                   ),
-                  // Training card
+                  // Training card - Updated to go directly to TrainingTypesPage
                   _buildFeatureCard(
                     context,
                     icon: Icons.fitness_center,
@@ -104,7 +104,10 @@ class TeacherHomeScreen extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => TrainingWelcomePage(userName: displayName),
+                          builder: (context) => TrainingTypesPage(
+                            userId: userId,
+                            displayName: displayName,
+                          ),
                         ),
                       );
                     },
