@@ -1,21 +1,5 @@
 import 'package:flutter/material.dart';
-
 import 'sketch_painter.dart';
-
-
-class TakrawTacticBoardApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    // Main entry point of the app. Sets up the MaterialApp with a title, theme, and home page.
-    return MaterialApp(
-      title: 'Sepak Takraw Tactic Board',
-      theme: ThemeData(
-        primarySwatch: Colors.orange, // Orange color theme for the app.
-      ),
-      home: TacticBoardPage(), // The home screen of the app.
-    );
-  }
-}
 
 class TacticBoardPage extends StatefulWidget {
   @override
@@ -87,94 +71,103 @@ class _TacticBoardPageState extends State<TacticBoardPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Takraw Tactic Board'), // Title of the app bar.
-      ),
-      body: Stack(
-        children: [
-          // Background representing the Sepak Takraw court.
-          Container(
-            color: Colors.brown[300], // Light brown background for the court.
-            child: Center(
-              child: Container(
-                height: 600, // Height of the court.
-                width: 300, // Width of the court.
-                decoration: BoxDecoration(
-                  color: Colors.brown[500], // Darker brown for the main court area.
-                  border: Border.all(color: Colors.white, width: 2), // White border around the court.
-                ),
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: Container(), // Top half of the court (empty for now).
-                    ),
-                    Divider(color: Colors.white, thickness: 2), // White line dividing the court.
-                    Expanded(
-                      child: Container(), // Bottom half of the court (empty for now).
-                    ),
-                  ],
-                ),
+    return Stack(
+      children: [
+        // Background representing the Sepak Takraw court.
+        Container(
+          color: Colors.brown[300], // Light brown background for the court.
+          child: Center(
+            child: Container(
+              height: 600, // Height of the court.
+              width: 300, // Width of the court.
+              decoration: BoxDecoration(
+                color: Colors.brown[500], // Darker brown for the main court area.
+                border: Border.all(color: Colors.white, width: 2), // White border around the court.
+              ),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: Container(), // Top half of the court (empty for now).
+                  ),
+                  Divider(color: Colors.white, thickness: 2), // White line dividing the court.
+                  Expanded(
+                    child: Container(), // Bottom half of the court (empty for now).
+                  ),
+                ],
               ),
             ),
           ),
+        ),
 
-          // Players on the court.
-          for (int i = 0; i < playerPositions.length; i++)
-            Positioned(
-              left: playerPositions[i].dx - 25, // Adjusted x-position to center the player widget.
-              top: playerPositions[i].dy - 25, // Adjusted y-position to center the player widget.
-              child: GestureDetector(
-                onPanUpdate: (details) {
-                  setState(() {
-                    playerPositions[i] = playerPositions[i] + details.delta; // Update position as the user drags.
-                  });
-                },
-                child: buildPlayer(i), // Build the player widget.
-              ),
-            ),
-
-          // Canvas for freehand drawing when sketch mode is enabled.
-          if (isSketchMode)
-            GestureDetector(
+        // Players on the court.
+        for (int i = 0; i < playerPositions.length; i++)
+          Positioned(
+            left: playerPositions[i].dx - 25, // Adjusted x-position to center the player widget.
+            top: playerPositions[i].dy - 25, // Adjusted y-position to center the player widget.
+            child: GestureDetector(
               onPanUpdate: (details) {
                 setState(() {
-                  drawingPoints.add(details.localPosition); // Add points as the user draws.
+                  playerPositions[i] = playerPositions[i] + details.delta; // Update position as the user drags.
                 });
               },
-              onPanEnd: (details) {
-                drawingPoints.add(lineBreak); // Add a line break at the end of the drawing gesture.
-              },
-              child: CustomPaint(
-                painter: SketchPainter(drawingPoints, lineBreak), // Custom painter for freehand drawing.
-                size: Size.infinite, // Fill the entire available space.
-              ),
-            ),
-
-          // Buttons for user interactions.
-          Positioned(
-            bottom: 20, // Position from the bottom of the screen.
-            left: 20, // Position from the left of the screen.
-            child: Row(
-              children: [
-                IconButton(
-                  icon: Icon(Icons.create), // Icon for sketch mode toggle.
-                  color: sketchButtonColor, // Dynamic color based on sketch mode state.
-                  onPressed: toggleSketchMode, // Toggles sketch mode.
-                ),
-                IconButton(
-                  icon: Icon(Icons.clear), // Icon for clearing the drawing.
-                  onPressed: clearDrawing, // Clears all drawings.
-                ),
-                IconButton(
-                  icon: Icon(Icons.refresh), // Icon for resetting player positions.
-                  onPressed: resetPositions, // Resets player positions.
-                ),
-              ],
+              child: buildPlayer(i), // Build the player widget.
             ),
           ),
-        ],
+
+        // Canvas for freehand drawing when sketch mode is enabled.
+        if (isSketchMode)
+          GestureDetector(
+            onPanUpdate: (details) {
+              setState(() {
+                drawingPoints.add(details.localPosition); // Add points as the user draws.
+              });
+            },
+            onPanEnd: (details) {
+              drawingPoints.add(lineBreak); // Add a line break at the end of the drawing gesture.
+            },
+            child: CustomPaint(
+              painter: SketchPainter(drawingPoints, lineBreak), // Custom painter for freehand drawing.
+              size: Size.infinite, // Fill the entire available space.
+            ),
+          ),
+
+        // Buttons for user interactions.
+        Positioned(
+          bottom: 20, // Position from the bottom of the screen.
+          left: 20, // Position from the left of the screen.
+          child: Row(
+            children: [
+              IconButton(
+                icon: Icon(Icons.create), // Icon for sketch mode toggle.
+                color: sketchButtonColor, // Dynamic color based on sketch mode state.
+                onPressed: toggleSketchMode, // Toggles sketch mode.
+              ),
+              IconButton(
+                icon: Icon(Icons.clear), // Icon for clearing the drawing.
+                onPressed: clearDrawing, // Clears all drawings.
+              ),
+              IconButton(
+                icon: Icon(Icons.refresh), // Icon for resetting player positions.
+                onPressed: resetPositions, // Resets player positions.
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// Main entry point app widget
+class TakrawTacticBoardApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Tactic Board'),
+        backgroundColor: Colors.orange,
       ),
+      body: TacticBoardPage(),
     );
   }
 }

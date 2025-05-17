@@ -1,20 +1,5 @@
 import 'package:flutter/material.dart';
 import 'gameboard.dart';
-import 'sketch_painter.dart'; // Importing the custom painter for freehand drawing.
-
-// Main app widget for the Sepak Takraw Scoreboard.
-class SepakTakrawApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Sepak Takraw Scoreboard', // Application title.
-      theme: ThemeData(
-        primarySwatch: Colors.orange, // Theme color.
-      ),
-      home: ScoreboardPage(), // Initial screen for the app.
-    );
-  }
-}
 
 // Stateful widget for the scoreboard functionality.
 class ScoreboardPage extends StatefulWidget {
@@ -112,37 +97,32 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Scoreboard'), // AppBar title.
-      ),
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly, // Distribute elements evenly.
-        children: [
-          // Display scores for both teams.
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround, // Space between columns.
-            children: [
-              buildScoreColumn(teamAName, teamAScore, 'A'), // Team A's score column.
-              buildScoreColumn(teamBName, teamBScore, 'B'), // Team B's score column.
-            ],
-          ),
-          ElevatedButton(
-            onPressed: undoLastScore, // Undo the last score update.
-            child: Text('Undo'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              // Navigate to the tactic board screen.
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => TakrawTacticBoardApp()),
-              );
-            },
-            child: Text('Go to Game Board'),
-          ),
-        ],
-      ),
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly, // Distribute elements evenly.
+      children: [
+        // Display scores for both teams.
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround, // Space between columns.
+          children: [
+            buildScoreColumn(teamAName, teamAScore, 'A'), // Team A's score column.
+            buildScoreColumn(teamBName, teamBScore, 'B'), // Team B's score column.
+          ],
+        ),
+        ElevatedButton(
+          onPressed: undoLastScore, // Undo the last score update.
+          child: Text('Undo'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            // Navigate to the tactic board screen.
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => TakrawTacticBoardApp()),
+            );
+          },
+          child: Text('Go to Game Board'),
+        ),
+      ],
     );
   }
 
@@ -189,6 +169,20 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
             ],
           ),
       ],
+    );
+  }
+}
+
+// Main app widget for the Sepak Takraw Scoreboard.
+class SepakTakrawApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Sepak Takraw Scoreboard'),
+        backgroundColor: Colors.orange,
+      ),
+      body: ScoreboardPage(),
     );
   }
 }
