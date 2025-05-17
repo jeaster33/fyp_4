@@ -1,8 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../Game tool/ScoreboardPage.dart';
 import '../authentication page/splash_screen.dart';
 import 'calender_coach_screen.dart';
-import 'gameboard_page.dart';
 import 'training_coach_page.dart';
 import 'schedule_date_screen.dart';
 
@@ -89,7 +89,7 @@ class TeacherHomeScreen extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => GameboardWelcomePage(userName: displayName),
+                          builder: (context) => SepakTakrawApp(),
                         ),
                       );
                     },
