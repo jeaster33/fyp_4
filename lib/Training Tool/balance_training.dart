@@ -11,6 +11,7 @@ class BalanceDrillPage extends StatefulWidget {
   final String coachName;
   final String drillName;
   final Color drillColor;
+  final Map<String, dynamic>? courseData;
 
   const BalanceDrillPage({
     Key? key,
@@ -22,6 +23,7 @@ class BalanceDrillPage extends StatefulWidget {
     required this.coachName,
     required this.drillName,
     required this.drillColor,
+    this.courseData,
   }) : super(key: key);
 
   @override
@@ -40,7 +42,6 @@ class _BalanceDrillPageState extends State<BalanceDrillPage> {
   
   // Week selection variables
   int _selectedWeek = 1;
-  final List<int> _weeks = [1, 2, 3, 4];
   
   List<Map<String, dynamic>> _previousRecords = [];
   bool _loadingHistory = true;
@@ -49,18 +50,12 @@ class _BalanceDrillPageState extends State<BalanceDrillPage> {
   void initState() {
     super.initState();
     _loadPreviousRecords();
-    _setCurrentWeek();
-  }
-
-  void _setCurrentWeek() {
-    DateTime now = DateTime.now();
-    DateTime firstDayOfMonth = DateTime(now.year, now.month, 1);
-    int daysDifference = now.difference(firstDayOfMonth).inDays;
-    int currentWeek = ((daysDifference + firstDayOfMonth.weekday) / 7).ceil();
-    
-    setState(() {
-      _selectedWeek = currentWeek.clamp(1, 4); // Ensure it's between 1-4
-    });
+    // Use course week if available
+    if (widget.courseData != null) {
+      setState(() {
+        _selectedWeek = widget.courseData!['currentWeek'];
+      });
+    }
   }
 
   String _getSelectedWeekTimestamp() {
@@ -73,28 +68,52 @@ class _BalanceDrillPageState extends State<BalanceDrillPage> {
     });
 
     try {
+      // Use a simpler query without ordering to avoid index requirements
       QuerySnapshot recordsSnapshot = await _firestore
           .collection('balance_records')
           .where('studentId', isEqualTo: widget.studentId)
-          .orderBy('timestamp', descending: true)
-          .limit(10)
           .get();
 
       List<Map<String, dynamic>> records = [];
       
       for (var doc in recordsSnapshot.docs) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        DateTime recordDate = (data['timestamp'] as Timestamp).toDate();
+        
+        // Check if this record belongs to the current course (client-side filtering)
+        if (widget.courseData != null && 
+            data['courseId'] != widget.courseData!['id']) {
+          continue; // Skip records not from this course
+        }
+        
+        // Convert Timestamp to DateTime safely
+        DateTime recordDate;
+        try {
+          recordDate = (data['timestamp'] as Timestamp).toDate();
+        } catch (e) {
+          recordDate = DateTime.now(); // Fallback
+        }
         
         records.add({
           'id': doc.id,
           'attempt': data['attempt'] ?? 1,
           'balanceScore': data['balanceScore'] ?? 5,
-          'timestamp': data['timestamp'] as Timestamp,
+          'timestamp': data['timestamp'],
           'notes': data['notes'] ?? '',
           'weekTimestamp': data['weekTimestamp'] ?? 'Not specified',
           'fullDate': DateFormat('MMM d, yyyy - h:mm a').format(recordDate),
         });
+      }
+
+      // Sort the records client-side instead of using orderBy
+      records.sort((a, b) {
+        Timestamp aStamp = a['timestamp'] as Timestamp;
+        Timestamp bStamp = b['timestamp'] as Timestamp;
+        return bStamp.compareTo(aStamp); // Descending order (newest first)
+      });
+      
+      // Limit to 10 records
+      if (records.length > 10) {
+        records = records.sublist(0, 10);
       }
 
       setState(() {
@@ -110,6 +129,13 @@ class _BalanceDrillPageState extends State<BalanceDrillPage> {
   }
 
   Future<void> _saveRecord() async {
+    if (widget.courseData == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No active training course')),
+      );
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
@@ -117,7 +143,7 @@ class _BalanceDrillPageState extends State<BalanceDrillPage> {
     try {
       String weekTimestamp = _getSelectedWeekTimestamp();
       
-      // Save the record to Firestore
+      // Save the record to Firestore with course data
       await _firestore.collection('balance_records').add({
         'studentId': widget.studentId,
         'studentName': widget.studentName,
@@ -130,6 +156,8 @@ class _BalanceDrillPageState extends State<BalanceDrillPage> {
         'timestamp': FieldValue.serverTimestamp(),
         'weekTimestamp': weekTimestamp,
         'selectedWeek': _selectedWeek,
+        'courseId': widget.courseData!['id'],
+        'courseName': widget.courseData!['courseName'],
       });
 
       // Show success message
@@ -171,63 +199,178 @@ class _BalanceDrillPageState extends State<BalanceDrillPage> {
         backgroundColor: widget.drillColor,
         foregroundColor: Colors.white,
       ),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
+      body: widget.courseData == null
+          ? Center(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Student info card
-                  Card(
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                  Icon(Icons.school, size: 64, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text(
+                    'No Active Training Course',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        children: [
-                          Row(
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Please start a training course to record training data',
+                    style: TextStyle(color: Colors.grey.shade700),
+                  ),
+                  SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: widget.drillColor,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: Text('Go Back'),
+                  ),
+                ],
+              ),
+            )
+          : _isLoading
+              ? Center(child: CircularProgressIndicator())
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Student info card
+                      Card(
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
                             children: [
-                              // Student avatar
-                              CircleAvatar(
-                                radius: 30,
-                                backgroundColor: Colors.grey.shade200,
-                                backgroundImage: widget.studentProfileImage.isNotEmpty
-                                    ? NetworkImage(widget.studentProfileImage)
-                                    : null,
-                                child: widget.studentProfileImage.isEmpty
-                                    ? Icon(Icons.person, size: 30, color: Colors.grey.shade700)
-                                    : null,
+                              Row(
+                                children: [
+                                  // Student avatar
+                                  CircleAvatar(
+                                    radius: 30,
+                                    backgroundColor: Colors.grey.shade200,
+                                    backgroundImage: widget.studentProfileImage.isNotEmpty
+                                        ? NetworkImage(widget.studentProfileImage)
+                                        : null,
+                                    child: widget.studentProfileImage.isEmpty
+                                        ? Icon(Icons.person, size: 30, color: Colors.grey.shade700)
+                                        : null,
+                                  ),
+                                  SizedBox(width: 16),
+                                  // Student details
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          widget.studentName,
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        SizedBox(height: 4),
+                                        Text(
+                                          widget.studentUsername,
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.grey.shade600,
+                                          ),
+                                        ),
+                                        SizedBox(height: 4),
+                                        Text(
+                                          'Drill: ${widget.drillName}',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w500,
+                                            color: widget.drillColor,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
-                              SizedBox(width: 16),
-                              // Student details
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                            ],
+                          ),
+                        ),
+                      ),
+                      
+                      SizedBox(height: 24),
+                      
+                      // Course and Week Information Card
+                      Card(
+                        elevation: 3,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.school, color: widget.drillColor),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Training Course',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                widget.courseData!['courseName'],
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Icon(Icons.calendar_month, size: 16, color: Colors.grey.shade600),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'Started: ${DateFormat('MMM d, yyyy').format(
+                                      widget.courseData!['startDate'] is Timestamp 
+                                        ? (widget.courseData!['startDate'] as Timestamp).toDate() 
+                                        : widget.courseData!['startDate']
+                                    )}',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 16),
+                              Container(
+                                width: double.infinity,
+                                padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                                decoration: BoxDecoration(
+                                  color: widget.drillColor.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: widget.drillColor.withOpacity(0.3)),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
+                                    Icon(Icons.access_time, color: widget.drillColor),
+                                    SizedBox(width: 8),
                                     Text(
-                                      widget.studentName,
+                                      'Recording for: Week ${_selectedWeek}',
                                       style: TextStyle(
-                                        fontSize: 18,
+                                        fontSize: 16,
                                         fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    SizedBox(height: 4),
-                                    Text(
-                                      widget.studentUsername,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
-                                    SizedBox(height: 4),
-                                    Text(
-                                      'Drill: ${widget.drillName}',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
                                         color: widget.drillColor,
                                       ),
                                     ),
@@ -236,378 +379,338 @@ class _BalanceDrillPageState extends State<BalanceDrillPage> {
                               ),
                             ],
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
-                  
-                  SizedBox(height: 24),
-                  
-                  // Week and Attempt Selection
-                  Card(
-                    elevation: 3,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
+                      
+                      SizedBox(height: 24),
+                      
+                      // Attempt Selection Card
+                      Card(
+                        elevation: 3,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.sports_volleyball, color: widget.drillColor),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Balance Drill Details',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 16),
+                              // Attempt selection
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Attempt:',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  SizedBox(height: 8),
+                                  DropdownButtonFormField<int>(
+                                    value: _selectedAttempt,
+                                    decoration: InputDecoration(
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8.0),
+                                      ),
+                                      contentPadding: EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                    ),
+                                    items: _attempts.map((int attempt) {
+                                      return DropdownMenuItem<int>(
+                                        value: attempt,
+                                        child: Text('Attempt $attempt'),
+                                      );
+                                    }).toList(),
+                                    onChanged: (int? newValue) {
+                                      setState(() {
+                                        _selectedAttempt = newValue!;
+                                      });
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      
+                      SizedBox(height: 32),
+                      
+                      // Performance details section
+                      Text(
+                        'Performance Details',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 16),
+                      
+                      // Balance score slider
+                      Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Icon(Icons.sports_volleyball, color: widget.drillColor),
-                              SizedBox(width: 8),
                               Text(
-                                'Balance Drill Details',
+                                'Balance Score: $_balanceScore/10',
                                 style: TextStyle(
                                   fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: 16),
-                          // Week selection
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Week:',
-                                style: TextStyle(
-                                  fontSize: 14,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
-                              SizedBox(height: 8),
-                              DropdownButtonFormField<int>(
-                                value: _selectedWeek,
-                                decoration: InputDecoration(
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8.0),
-                                  ),
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
+                              Container(
+                                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: _getScoreColor(_balanceScore),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  _getScoreLabel(_balanceScore),
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
                                   ),
                                 ),
-                                items: _weeks.map((int week) {
-                                  return DropdownMenuItem<int>(
-                                    value: week,
-                                    child: Text('Week $week'),
-                                  );
-                                }).toList(),
-                                onChanged: (int? newValue) {
-                                  setState(() {
-                                    _selectedWeek = newValue!;
-                                  });
-                                },
                               ),
                             ],
                           ),
-                          SizedBox(height: 16),
-                          // Attempt selection
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          SizedBox(height: 8),
+                          Slider(
+                            value: _balanceScore.toDouble(),
+                            min: 1,
+                            max: 10,
+                            divisions: 9,
+                            activeColor: _getScoreColor(_balanceScore),
+                            inactiveColor: Colors.grey.shade300,
+                            label: _balanceScore.toString(),
+                            onChanged: (double value) {
+                              setState(() {
+                                _balanceScore = value.round();
+                              });
+                            },
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                'Attempt:',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                ),
+                                'Poor',
+                                style: TextStyle(color: Colors.grey.shade600),
                               ),
-                              SizedBox(height: 8),
-                              DropdownButtonFormField<int>(
-                                value: _selectedAttempt,
-                                decoration: InputDecoration(
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8.0),
-                                  ),
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
-                                  ),
-                                ),
-                                items: _attempts.map((int attempt) {
-                                  return DropdownMenuItem<int>(
-                                    value: attempt,
-                                    child: Text('Attempt $attempt'),
-                                  );
-                                }).toList(),
-                                onChanged: (int? newValue) {
-                                  setState(() {
-                                    _selectedAttempt = newValue!;
-                                  });
-                                },
+                              Text(
+                                'Excellent',
+                                style: TextStyle(color: Colors.grey.shade600),
                               ),
                             ],
                           ),
                         ],
                       ),
-                    ),
-                  ),
-                  
-                  SizedBox(height: 32),
-                  
-                  // Performance details section
-                  Text(
-                    'Performance Details',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  
-                  // Balance score slider
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Balance Score: $_balanceScore/10',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
+                      
+                      SizedBox(height: 16),
+                      
+                      // Notes field
+                      TextField(
+                        controller: _notesController,
+                        maxLines: 3,
+                        decoration: InputDecoration(
+                          labelText: 'Coach Notes',
+                          hintText: 'Add observations, feedback or areas for improvement',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10.0),
                           ),
-                          Container(
-                            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: _getScoreColor(_balanceScore),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              _getScoreLabel(_balanceScore),
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 8),
-                      Slider(
-                        value: _balanceScore.toDouble(),
-                        min: 1,
-                        max: 10,
-                        divisions: 9,
-                        activeColor: _getScoreColor(_balanceScore),
-                        inactiveColor: Colors.grey.shade300,
-                        label: _balanceScore.toString(),
-                        onChanged: (double value) {
-                          setState(() {
-                            _balanceScore = value.round();
-                          });
-                        },
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Poor',
-                            style: TextStyle(color: Colors.grey.shade600),
-                          ),
-                          Text(
-                            'Excellent',
-                            style: TextStyle(color: Colors.grey.shade600),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  
-                  SizedBox(height: 16),
-                  
-                  // Notes field
-                  TextField(
-                    controller: _notesController,
-                    maxLines: 3,
-                    decoration: InputDecoration(
-                      labelText: 'Coach Notes',
-                      hintText: 'Add observations, feedback or areas for improvement',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10.0),
-                      ),
-                      alignLabelWithHint: true,
-                    ),
-                  ),
-                  
-                  SizedBox(height: 24),
-                  
-                  // Save button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: _saveRecord,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: widget.drillColor,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                          alignLabelWithHint: true,
                         ),
                       ),
-                      child: Text(
-                        'Save Balance Record for ${_getSelectedWeekTimestamp()}',
-                        style: TextStyle(fontSize: 16),
+                      
+                      SizedBox(height: 24),
+                      
+                      // Save button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: _saveRecord,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: widget.drillColor,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: Text(
+                            'Save Balance Record for ${_getSelectedWeekTimestamp()}',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  
-                  SizedBox(height: 32),
-                  
-                  // Previous records section
-                  Text(
-                    'Training History',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  
-                  _loadingHistory
-                      ? Center(child: CircularProgressIndicator())
-                      : _previousRecords.isEmpty
-                          ? Center(
-                              child: Padding(
-                                padding: const EdgeInsets.all(16.0),
-                                child: Text(
-                                  'No previous records for this student',
-                                  style: TextStyle(
-                                    color: Colors.grey.shade600,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                              ),
-                            )
-                          : ListView.builder(
-                              shrinkWrap: true,
-                              physics: NeverScrollableScrollPhysics(),
-                              itemCount: _previousRecords.length,
-                              itemBuilder: (context, index) {
-                                final record = _previousRecords[index];
-                                
-                                return Card(
-                                  margin: EdgeInsets.only(bottom: 12),
-                                  elevation: 2,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
+                      
+                      SizedBox(height: 32),
+                      
+                      // Previous records section
+                      Text(
+                        'Training History',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      
+                      _loadingHistory
+                          ? Center(child: CircularProgressIndicator())
+                          : _previousRecords.isEmpty
+                              ? Center(
                                   child: Padding(
-                                    padding: const EdgeInsets.all(12.0),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    padding: const EdgeInsets.all(16.0),
+                                    child: Text(
+                                      'No previous records for this student',
+                                      style: TextStyle(
+                                        color: Colors.grey.shade600,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : ListView.builder(
+                                  shrinkWrap: true,
+                                  physics: NeverScrollableScrollPhysics(),
+                                  itemCount: _previousRecords.length,
+                                  itemBuilder: (context, index) {
+                                    final record = _previousRecords[index];
+                                    
+                                    return Card(
+                                      margin: EdgeInsets.only(bottom: 12),
+                                      elevation: 2,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(12.0),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
-                                            Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                            Row(
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                               children: [
-                                                Text(
-                                                  'Balance Score: ${record['balanceScore']}/10',
-                                                  style: TextStyle(
-                                                    fontSize: 18,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: widget.drillColor,
-                                                  ),
-                                                ),
-                                                SizedBox(height: 4),
-                                                Row(
+                                                Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
                                                   children: [
-                                                    Icon(
-                                                      Icons.calendar_today,
-                                                      size: 14,
-                                                      color: Colors.grey.shade600,
-                                                    ),
-                                                    SizedBox(width: 4),
                                                     Text(
-                                                      record['weekTimestamp'],
+                                                      'Balance Score: ${record['balanceScore']}/10',
                                                       style: TextStyle(
-                                                        fontSize: 14,
-                                                        fontWeight: FontWeight.w600,
+                                                        fontSize: 18,
+                                                        fontWeight: FontWeight.bold,
                                                         color: widget.drillColor,
                                                       ),
                                                     ),
+                                                    SizedBox(height: 4),
+                                                    Row(
+                                                      children: [
+                                                        Icon(
+                                                          Icons.calendar_today,
+                                                          size: 14,
+                                                          color: Colors.grey.shade600,
+                                                        ),
+                                                        SizedBox(width: 4),
+                                                        Text(
+                                                          record['weekTimestamp'],
+                                                          style: TextStyle(
+                                                            fontSize: 14,
+                                                            fontWeight: FontWeight.w600,
+                                                            color: widget.drillColor,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
                                                   ],
+                                                ),
+                                                Container(
+                                                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                                  decoration: BoxDecoration(
+                                                    color: _getScoreColor(record['balanceScore']),
+                                                    borderRadius: BorderRadius.circular(20),
+                                                  ),
+                                                  child: Text(
+                                                    _getScoreLabel(record['balanceScore']),
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontWeight: FontWeight.bold,
+                                                      fontSize: 12,
+                                                    ),
+                                                  ),
                                                 ),
                                               ],
                                             ),
-                                            Container(
-                                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                              decoration: BoxDecoration(
-                                                color: _getScoreColor(record['balanceScore']),
-                                                borderRadius: BorderRadius.circular(20),
+                                            SizedBox(height: 8),
+                                            Row(
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                Text(
+                                                  'Attempt: ${record['attempt']}',
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    color: Colors.grey.shade600,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            if (record['notes'].isNotEmpty) SizedBox(height: 8),
+                                            if (record['notes'].isNotEmpty)
+                                              Container(
+                                                width: double.infinity,
+                                                padding: EdgeInsets.all(8),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.grey.shade50,
+                                                  borderRadius: BorderRadius.circular(6),
+                                                  border: Border.all(color: Colors.grey.shade200),
+                                                ),
+                                                child: Text(
+                                                  record['notes'],
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    fontStyle: FontStyle.italic,
+                                                  ),
+                                                ),
                                               ),
+                                            SizedBox(height: 4),
+                                            Align(
+                                              alignment: Alignment.centerRight,
                                               child: Text(
-                                                _getScoreLabel(record['balanceScore']),
+                                                record['fullDate'],
                                                 style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.bold,
                                                   fontSize: 12,
+                                                  color: Colors.grey.shade500,
                                                 ),
                                               ),
                                             ),
                                           ],
                                         ),
-                                        SizedBox(height: 8),
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Text(
-                                              'Attempt: ${record['attempt']}',
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                color: Colors.grey.shade600,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        if (record['notes'].isNotEmpty) SizedBox(height: 8),
-                                        if (record['notes'].isNotEmpty)
-                                          Container(
-                                            width: double.infinity,
-                                            padding: EdgeInsets.all(8),
-                                            decoration: BoxDecoration(
-                                              color: Colors.grey.shade50,
-                                              borderRadius: BorderRadius.circular(6),
-                                              border: Border.all(color: Colors.grey.shade200),
-                                            ),
-                                            child: Text(
-                                              record['notes'],
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                fontStyle: FontStyle.italic,
-                                              ),
-                                            ),
-                                          ),
-                                        SizedBox(height: 4),
-                                        Align(
-                                          alignment: Alignment.centerRight,
-                                          child: Text(
-                                            record['fullDate'],
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey.shade500,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                ],
-              ),
-            ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                    ],
+                  ),
+                ),
     );
   }
   

@@ -9,6 +9,8 @@ class StudentListPage extends StatefulWidget {
   final String coachName;
   final String drillName;
   final Color drillColor;
+  final Map<String, dynamic>? courseData;  // Add this line
+
 
   const StudentListPage({
     Key? key,
@@ -16,6 +18,8 @@ class StudentListPage extends StatefulWidget {
     required this.coachName,
     required this.drillName,
     required this.drillColor,
+    this.courseData,  // Add this line
+
   }) : super(key: key);
 
   @override
@@ -99,6 +103,8 @@ class _StudentListPageState extends State<StudentListPage> {
         coachName: widget.coachName,
         drillName: widget.drillName,
         drillColor: widget.drillColor,
+        courseData: widget.courseData,  // Add this line
+
       );
     } else if (widget.drillName.contains('Balance')) {
       drillPage = BalanceDrillPage(
@@ -110,6 +116,8 @@ class _StudentListPageState extends State<StudentListPage> {
         coachName: widget.coachName,
         drillName: widget.drillName,
         drillColor: widget.drillColor,
+        courseData: widget.courseData,  // Add this line
+
       );
     } else if (widget.drillName.contains('Spike')) {
       drillPage = SpikeDrillPage(
@@ -121,6 +129,8 @@ class _StudentListPageState extends State<StudentListPage> {
         coachName: widget.coachName,
         drillName: widget.drillName,
         drillColor: widget.drillColor,
+              courseData: widget.courseData,  // Add this line
+
       );
     } else {
       // Default to EnduranceDrillPage if type is unknown
@@ -133,6 +143,8 @@ class _StudentListPageState extends State<StudentListPage> {
         coachName: widget.coachName,
         drillName: widget.drillName,
         drillColor: widget.drillColor,
+              courseData: widget.courseData,  // Add this line
+
       );
     }
     
