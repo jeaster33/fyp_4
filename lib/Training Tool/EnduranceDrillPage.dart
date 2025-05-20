@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'dart:async';
 
-class SpikeDrillPage extends StatefulWidget {
+class EnduranceDrillPage extends StatefulWidget {
   final String studentId;
   final String studentName;
   final String studentUsername;
@@ -12,7 +13,7 @@ class SpikeDrillPage extends StatefulWidget {
   final String drillName;
   final Color drillColor;
 
-  const SpikeDrillPage({
+  const EnduranceDrillPage({
     Key? key,
     required this.studentId,
     required this.studentName,
@@ -25,21 +26,29 @@ class SpikeDrillPage extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _SpikeDrillPageState createState() => _SpikeDrillPageState();
+  _EnduranceDrillPageState createState() => _EnduranceDrillPageState();
 }
 
-class _SpikeDrillPageState extends State<SpikeDrillPage> {
+class _EnduranceDrillPageState extends State<EnduranceDrillPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
   bool _isLoading = false;
+  bool _timerRunning = false;
+  bool _timerPaused = false;
+  Stopwatch _stopwatch = Stopwatch();
+  late Timer _timer;
+  String _elapsedTime = '00:00.0';
   
   TextEditingController _notesController = TextEditingController();
-  int _successfulSpikes = 0;
-  int _totalAttempts = 10;
-  double get _successRate => _totalAttempts > 0 ? _successfulSpikes / _totalAttempts : 0;
+  int _intensityRating = 3;
   
   // Week selection variables
+  String _selectedMonth = DateFormat('MMMM').format(DateTime.now());
   int _selectedWeek = 1;
+  final List<String> _months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
   final List<int> _weeks = [1, 2, 3, 4];
   
   List<Map<String, dynamic>> _previousRecords = [];
@@ -49,6 +58,7 @@ class _SpikeDrillPageState extends State<SpikeDrillPage> {
   void initState() {
     super.initState();
     _loadPreviousRecords();
+    // Set initial week based on current date
     _setCurrentWeek();
   }
 
@@ -59,12 +69,13 @@ class _SpikeDrillPageState extends State<SpikeDrillPage> {
     int currentWeek = ((daysDifference + firstDayOfMonth.weekday) / 7).ceil();
     
     setState(() {
+      _selectedMonth = DateFormat('MMMM').format(now);
       _selectedWeek = currentWeek.clamp(1, 4); // Ensure it's between 1-4
     });
   }
 
   String _getSelectedWeekTimestamp() {
-    return 'Week $_selectedWeek';
+    return '$_selectedMonth Week $_selectedWeek';
   }
 
   Future<void> _loadPreviousRecords() async {
@@ -74,8 +85,9 @@ class _SpikeDrillPageState extends State<SpikeDrillPage> {
 
     try {
       QuerySnapshot recordsSnapshot = await _firestore
-          .collection('spike_records')
+          .collection('stamina_records')
           .where('studentId', isEqualTo: widget.studentId)
+          .where('drillName', isEqualTo: widget.drillName)
           .orderBy('timestamp', descending: true)
           .limit(10)
           .get();
@@ -88,11 +100,10 @@ class _SpikeDrillPageState extends State<SpikeDrillPage> {
         
         records.add({
           'id': doc.id,
-          'successfulSpikes': data['successfulSpikes'] ?? 0,
-          'totalAttempts': data['totalAttempts'] ?? 0,
-          'successRate': data['totalAttempts'] > 0 ? data['successfulSpikes'] / data['totalAttempts'] : 0,
+          'time': data['time'] ?? '00:00.0',
           'timestamp': data['timestamp'] as Timestamp,
           'notes': data['notes'] ?? '',
+          'intensityRating': data['intensityRating'] ?? 3,
           'weekTimestamp': data['weekTimestamp'] ?? 'Not specified',
           'fullDate': DateFormat('MMM d, yyyy - h:mm a').format(recordDate),
         });
@@ -110,41 +121,70 @@ class _SpikeDrillPageState extends State<SpikeDrillPage> {
     }
   }
 
-  // Increment/decrement spike counters
-  void _incrementSuccessful() {
-    if (_successfulSpikes < _totalAttempts) {
-      setState(() {
-        _successfulSpikes++;
-      });
-    }
-  }
-
-  void _decrementSuccessful() {
-    if (_successfulSpikes > 0) {
-      setState(() {
-        _successfulSpikes--;
-      });
-    }
-  }
-
-  void _incrementTotal() {
-    setState(() {
-      _totalAttempts++;
+  void _startTimer() {
+    _stopwatch.start();
+    _timerRunning = true;
+    _timerPaused = false;
+    
+    _timer = Timer.periodic(Duration(milliseconds: 100), (timer) {
+      if (mounted) {
+        setState(() {
+          _updateDisplay();
+        });
+      }
     });
   }
 
-  void _decrementTotal() {
-    if (_totalAttempts > _successfulSpikes) {
-      setState(() {
-        _totalAttempts--;
-      });
-    }
+  void _pauseTimer() {
+    _stopwatch.stop();
+    _timer.cancel();
+    _timerRunning = true;
+    _timerPaused = true;
+  }
+
+  void _resumeTimer() {
+    _stopwatch.start();
+    _timerPaused = false;
+    
+    _timer = Timer.periodic(Duration(milliseconds: 100), (timer) {
+      if (mounted) {
+        setState(() {
+          _updateDisplay();
+        });
+      }
+    });
+  }
+
+  void _stopTimer() {
+    _stopwatch.stop();
+    _timer.cancel();
+    _timerRunning = false;
+    _timerPaused = false;
+    _updateDisplay();
+  }
+
+  void _resetTimer() {
+    _stopwatch.reset();
+    setState(() {
+      _elapsedTime = '00:00.0';
+      _timerRunning = false;
+      _timerPaused = false;
+    });
+  }
+
+  void _updateDisplay() {
+    final milliseconds = _stopwatch.elapsedMilliseconds;
+    final minutes = (milliseconds / 60000).floor().toString().padLeft(2, '0');
+    final seconds = ((milliseconds % 60000) / 1000).floor().toString().padLeft(2, '0');
+    final tenths = ((milliseconds % 1000) / 100).floor();
+    
+    _elapsedTime = '$minutes:$seconds.$tenths';
   }
 
   Future<void> _saveRecord() async {
-    if (_successfulSpikes > _totalAttempts) {
+    if (_elapsedTime == '00:00.0') {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Successful spikes cannot exceed total attempts')),
+        SnackBar(content: Text('Please record a time before saving')),
       );
       return;
     }
@@ -157,18 +197,18 @@ class _SpikeDrillPageState extends State<SpikeDrillPage> {
       String weekTimestamp = _getSelectedWeekTimestamp();
       
       // Save the record to Firestore
-      await _firestore.collection('spike_records').add({
+      await _firestore.collection('stamina_records').add({
         'studentId': widget.studentId,
         'studentName': widget.studentName,
         'coachId': widget.coachId,
         'coachName': widget.coachName,
         'drillName': widget.drillName,
-        'successfulSpikes': _successfulSpikes,
-        'totalAttempts': _totalAttempts,
-        'successRate': _successRate,
+        'time': _elapsedTime,
         'notes': _notesController.text,
+        'intensityRating': _intensityRating,
         'timestamp': FieldValue.serverTimestamp(),
         'weekTimestamp': weekTimestamp,
+        'selectedMonth': _selectedMonth,
         'selectedWeek': _selectedWeek,
       });
 
@@ -178,10 +218,10 @@ class _SpikeDrillPageState extends State<SpikeDrillPage> {
       );
 
       // Reset the form
+      _resetTimer();
       _notesController.clear();
       setState(() {
-        _successfulSpikes = 0;
-        _totalAttempts = 10;
+        _intensityRating = 3;
       });
 
       // Reload previous records
@@ -200,6 +240,9 @@ class _SpikeDrillPageState extends State<SpikeDrillPage> {
 
   @override
   void dispose() {
+    if (_timerRunning && !_timerPaused) {
+      _timer.cancel();
+    }
     _notesController.dispose();
     super.dispose();
   }
@@ -284,7 +327,7 @@ class _SpikeDrillPageState extends State<SpikeDrillPage> {
                   
                   SizedBox(height: 24),
                   
-                  // Week Selection
+                  // Week Selection Card
                   Card(
                     elevation: 3,
                     shape: RoundedRectangleBorder(
@@ -297,10 +340,10 @@ class _SpikeDrillPageState extends State<SpikeDrillPage> {
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.sports_handball, color: widget.drillColor),
+                              Icon(Icons.calendar_today, color: widget.drillColor),
                               SizedBox(width: 8),
                               Text(
-                                'Spike Drill Details',
+                                'Select Recording Week',
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -309,175 +352,109 @@ class _SpikeDrillPageState extends State<SpikeDrillPage> {
                             ],
                           ),
                           SizedBox(height: 16),
-                          // Week selection
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Week:',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              SizedBox(height: 8),
-                              DropdownButtonFormField<int>(
-                                value: _selectedWeek,
-                                decoration: InputDecoration(
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8.0),
-                                  ),
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
-                                  ),
-                                ),
-                                items: _weeks.map((int week) {
-                                  return DropdownMenuItem<int>(
-                                    value: week,
-                                    child: Text('Week $week'),
-                                  );
-                                }).toList(),
-                                onChanged: (int? newValue) {
-                                  setState(() {
-                                    _selectedWeek = newValue!;
-                                  });
-                                },
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  
-                  SizedBox(height: 24),
-                  
-                  // Spike Counter Card
-                  Card(
-                    elevation: 3,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Spike Performance',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(height: 16),
-                          
-                          // Successful Spikes Counter
                           Row(
                             children: [
+                              // Month selection
                               Expanded(
-                                child: Text(
-                                  'Successful Spikes:',
-                                  style: TextStyle(fontSize: 16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Month:',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    SizedBox(height: 8),
+                                    DropdownButtonFormField<String>(
+                                      value: _selectedMonth,
+                                      decoration: InputDecoration(
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(8.0),
+                                        ),
+                                        contentPadding: EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 8,
+                                        ),
+                                      ),
+                                      items: _months.map((String month) {
+                                        return DropdownMenuItem<String>(
+                                          value: month,
+                                          child: Text(month),
+                                        );
+                                      }).toList(),
+                                      onChanged: (String? newValue) {
+                                        setState(() {
+                                          _selectedMonth = newValue!;
+                                        });
+                                      },
+                                    ),
+                                  ],
                                 ),
                               ),
-                              IconButton(
-                                icon: Icon(Icons.remove_circle),
-                                color: Colors.red,
-                                onPressed: _decrementSuccessful,
-                              ),
-                              Container(
-                                width: 50,
-                                alignment: Alignment.center,
-                                child: Text(
-                                  '$_successfulSpikes',
-                                  style: TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    color: widget.drillColor,
-                                  ),
+                              SizedBox(width: 16),
+                              // Week selection
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Week:',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    SizedBox(height: 8),
+                                    DropdownButtonFormField<int>(
+                                      value: _selectedWeek,
+                                      decoration: InputDecoration(
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(8.0),
+                                        ),
+                                        contentPadding: EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 8,
+                                        ),
+                                      ),
+                                      items: _weeks.map((int week) {
+                                        return DropdownMenuItem<int>(
+                                          value: week,
+                                          child: Text('Week $week'),
+                                        );
+                                      }).toList(),
+                                      onChanged: (int? newValue) {
+                                        setState(() {
+                                          _selectedWeek = newValue!;
+                                        });
+                                      },
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              IconButton(
-                                icon: Icon(Icons.add_circle),
-                                color: Colors.green,
-                                onPressed: _incrementSuccessful,
                               ),
                             ],
                           ),
-                          
-                          // Total Attempts Counter
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  'Total Attempts:',
-                                  style: TextStyle(fontSize: 16),
-                                ),
-                              ),
-                              IconButton(
-                                icon: Icon(Icons.remove_circle),
-                                color: Colors.red,
-                                onPressed: _decrementTotal,
-                              ),
-                              Container(
-                                width: 50,
-                                alignment: Alignment.center,
-                                child: Text(
-                                  '$_totalAttempts',
-                                  style: TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    color: widget.drillColor,
-                                  ),
-                                ),
-                              ),
-                              IconButton(
-                                icon: Icon(Icons.add_circle),
-                                color: Colors.green,
-                                onPressed: _incrementTotal,
-                              ),
-                            ],
-                          ),
-                          
-                          SizedBox(height: 16),
-                          
-                          // Success Rate
+                          SizedBox(height: 12),
+                          // Selected week display
                           Container(
                             width: double.infinity,
-                            padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                            padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                             decoration: BoxDecoration(
                               color: widget.drillColor.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: widget.drillColor.withOpacity(0.3),
+                              ),
                             ),
-                            child: Column(
-                              children: [
-                                Text(
-                                  'Success Rate',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    color: widget.drillColor,
-                                  ),
-                                ),
-                                SizedBox(height: 8),
-                                Text(
-                                  '${(_successRate * 100).toStringAsFixed(1)}%',
-                                  style: TextStyle(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.bold,
-                                    color: widget.drillColor,
-                                  ),
-                                ),
-                                SizedBox(height: 8),
-                                LinearProgressIndicator(
-                                  value: _successRate,
-                                  backgroundColor: Colors.grey.shade300,
-                                  valueColor: AlwaysStoppedAnimation<Color>(widget.drillColor),
-                                  minHeight: 8,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                              ],
+                            child: Text(
+                              'Recording for: ${_getSelectedWeekTimestamp()}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: widget.drillColor,
+                              ),
+                              textAlign: TextAlign.center,
                             ),
                           ),
                         ],
@@ -486,6 +463,155 @@ class _SpikeDrillPageState extends State<SpikeDrillPage> {
                   ),
                   
                   SizedBox(height: 24),
+                  
+                  // Timer display
+                  Center(
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: EdgeInsets.symmetric(vertical: 32, horizontal: 48),
+                          decoration: BoxDecoration(
+                            color: widget.drillColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: widget.drillColor.withOpacity(0.5),
+                              width: 2,
+                            ),
+                          ),
+                          child: Text(
+                            _elapsedTime,
+                            style: TextStyle(
+                              fontSize: 48,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'monospace',
+                              color: widget.drillColor,
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 24),
+                        
+                        // Timer control buttons
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (!_timerRunning)
+                              ElevatedButton.icon(
+                                onPressed: _startTimer,
+                                icon: Icon(Icons.play_arrow),
+                                label: Text('Start'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                  foregroundColor: Colors.white,
+                                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                ),
+                              ),
+                            if (_timerRunning && !_timerPaused)
+                              ElevatedButton.icon(
+                                onPressed: _pauseTimer,
+                                icon: Icon(Icons.pause),
+                                label: Text('Pause'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.orange,
+                                  foregroundColor: Colors.white,
+                                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                ),
+                              ),
+                            if (_timerRunning && _timerPaused)
+                              ElevatedButton.icon(
+                                onPressed: _resumeTimer,
+                                icon: Icon(Icons.play_arrow),
+                                label: Text('Resume'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                  foregroundColor: Colors.white,
+                                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                ),
+                              ),
+                            SizedBox(width: 12),
+                            if (_timerRunning)
+                              ElevatedButton.icon(
+                                onPressed: _stopTimer,
+                                icon: Icon(Icons.stop),
+                                label: Text('Stop'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red,
+                                  foregroundColor: Colors.white,
+                                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                ),
+                              ),
+                            if (!_timerRunning && _elapsedTime != '00:00.0')
+                              ElevatedButton.icon(
+                                onPressed: _resetTimer,
+                                icon: Icon(Icons.refresh),
+                                label: Text('Reset'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blueGrey,
+                                  foregroundColor: Colors.white,
+                                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  SizedBox(height: 32),
+                  
+                  // Performance details section
+                  Text(
+                    'Performance Details',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  
+                  // Intensity rating
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Intensity Rating:',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Low', style: TextStyle(color: Colors.grey.shade600)),
+                          Row(
+                            children: List.generate(5, (index) {
+                              return GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _intensityRating = index + 1;
+                                  });
+                                },
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 4.0),
+                                  child: Icon(
+                                    Icons.fitness_center,
+                                    size: 28,
+                                    color: index < _intensityRating
+                                        ? widget.drillColor
+                                        : Colors.grey.shade300,
+                                  ),
+                                ),
+                              );
+                            }),
+                          ),
+                          Text('High', style: TextStyle(color: Colors.grey.shade600)),
+                        ],
+                      ),
+                    ],
+                  ),
+                  
+                  SizedBox(height: 16),
                   
                   // Notes field
                   TextField(
@@ -517,7 +643,7 @@ class _SpikeDrillPageState extends State<SpikeDrillPage> {
                         ),
                       ),
                       child: Text(
-                        'Save Spike Record for ${_getSelectedWeekTimestamp()}',
+                        'Save Record for ${_getSelectedWeekTimestamp()}',
                         style: TextStyle(fontSize: 16),
                       ),
                     ),
@@ -542,7 +668,7 @@ class _SpikeDrillPageState extends State<SpikeDrillPage> {
                               child: Padding(
                                 padding: const EdgeInsets.all(16.0),
                                 child: Text(
-                                  'No previous records for this student',
+                                  'No previous records for this drill',
                                   style: TextStyle(
                                     color: Colors.grey.shade600,
                                     fontSize: 16,
@@ -575,7 +701,7 @@ class _SpikeDrillPageState extends State<SpikeDrillPage> {
                                               crossAxisAlignment: CrossAxisAlignment.start,
                                               children: [
                                                 Text(
-                                                  'Success: ${(record['successRate'] * 100).toStringAsFixed(1)}%',
+                                                  record['time'],
                                                   style: TextStyle(
                                                     fontSize: 20,
                                                     fontWeight: FontWeight.bold,
@@ -603,52 +729,14 @@ class _SpikeDrillPageState extends State<SpikeDrillPage> {
                                                 ),
                                               ],
                                             ),
-                                            Row(
-                                              children: [
-                                                Container(
-                                                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.green.shade100,
-                                                    borderRadius: BorderRadius.circular(4),
-                                                  ),
-                                                  child: Text(
-                                                    '${record['successfulSpikes']} successful',
-                                                    style: TextStyle(
-                                                      color: Colors.green.shade800,
-                                                      fontWeight: FontWeight.bold,
-                                                      fontSize: 12,
-                                                    ),
-                                                  ),
-                                                ),
-                                                SizedBox(width: 4),
-                                                Container(
-                                                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.grey.shade100,
-                                                    borderRadius: BorderRadius.circular(4),
-                                                  ),
-                                                  child: Text(
-                                                    '${record['totalAttempts']} attempts',
-                                                    style: TextStyle(
-                                                      color: Colors.grey.shade800,
-                                                      fontWeight: FontWeight.bold,
-                                                      fontSize: 12,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
+                                            Text(
+                                              record['fullDate'],
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey.shade600,
+                                              ),
                                             ),
                                           ],
-                                        ),
-                                        SizedBox(height: 8),
-                                        LinearProgressIndicator(
-                                          value: record['successRate'],
-                                          backgroundColor: Colors.grey.shade300,
-                                          valueColor: AlwaysStoppedAnimation<Color>(
-                                            _getSuccessRateColor(record['successRate']),
-                                          ),
-                                          minHeight: 6,
-                                          borderRadius: BorderRadius.circular(3),
                                         ),
                                         if (record['notes'].isNotEmpty) SizedBox(height: 8),
                                         if (record['notes'].isNotEmpty)
@@ -668,16 +756,28 @@ class _SpikeDrillPageState extends State<SpikeDrillPage> {
                                               ),
                                             ),
                                           ),
-                                        SizedBox(height: 4),
-                                        Align(
-                                          alignment: Alignment.centerRight,
-                                          child: Text(
-                                            record['fullDate'],
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey.shade500,
+                                        SizedBox(height: 8),
+                                        Row(
+                                          children: [
+                                            Text(
+                                              'Intensity: ',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey.shade600,
+                                              ),
                                             ),
-                                          ),
+                                            Row(
+                                              children: List.generate(5, (i) {
+                                                return Icon(
+                                                  Icons.fitness_center,
+                                                  size: 14,
+                                                  color: i < record['intensityRating']
+                                                      ? widget.drillColor
+                                                      : Colors.grey.shade300,
+                                                );
+                                              }),
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ),
@@ -689,13 +789,5 @@ class _SpikeDrillPageState extends State<SpikeDrillPage> {
               ),
             ),
     );
-  }
-  
-  Color _getSuccessRateColor(double rate) {
-    if (rate >= 0.8) return Colors.green;
-    if (rate >= 0.6) return Colors.lightGreen;
-    if (rate >= 0.4) return Colors.orange;
-    if (rate >= 0.2) return Colors.deepOrange;
-    return Colors.red;
   }
 }

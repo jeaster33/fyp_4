@@ -1,9 +1,5 @@
 import 'package:flutter/material.dart';
-
-import 'balance_training.dart';
-import 'spike_training.dart';
-import 'stamina_training.dart';
-
+import 'StudentListPage.dart';
 
 class TrainingTypesPage extends StatelessWidget {
   final String userId;
@@ -166,40 +162,38 @@ class TrainingTypesPage extends StatelessWidget {
   }
 
   void _navigateToTraining(BuildContext context, String type) {
+    // All training types now direct to StudentListPage with appropriate parameters
+    String drillName;
+    Color drillColor;
+    
     switch (type) {
       case 'stamina':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => StaminaTrainingPage(
-              userId: userId,
-              displayName: displayName,
-            ),
-          ),
-        );
+        drillName = 'Stamina Training';
+        drillColor = Colors.orange;
         break;
       case 'balance':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => BalanceBallTrainingPage(
-              userId: userId,
-              displayName: displayName,
-            ),
-          ),
-        );
+        drillName = 'Balance Training';
+        drillColor = Colors.blue;
         break;
       case 'spike':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => SpikeBallTrainingPage(
-              userId: userId,
-              displayName: displayName,
-            ),
-          ),
-        );
+        drillName = 'Spike Training';
+        drillColor = Colors.red;
         break;
+      default:
+        drillName = 'Training';
+        drillColor = Colors.green;
     }
+    
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => StudentListPage(
+          coachId: userId,
+          coachName: displayName ?? '',
+          drillName: drillName,
+          drillColor: drillColor,
+        ),
+      ),
+    );
   }
 }
