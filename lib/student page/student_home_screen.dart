@@ -7,6 +7,7 @@ import '../authentication page/splash_screen.dart';
 import 'profile_page.dart';
 import 'performance_page.dart';
 import 'student_schedule_list_screen.dart';
+import 'attendance_student_page.dart'; // Added import for attendance page
 
 class StudentHomeScreen extends StatefulWidget {
   const StudentHomeScreen({super.key});
@@ -88,62 +89,62 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-// Profile section with picture
-Center(
-  child: Column(
-    children: [
-      // Profile picture
-      GestureDetector(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ProfilePage(
-                onProfileUpdated: _loadUserData,
-              ),
-            ),
-          );
-        },
-        child: Hero(
-          tag: 'profilePicture',
-          child: CircleAvatar(
-            radius: 50,
-            backgroundColor: Colors.grey.shade200,
-            backgroundImage: _profileImageUrl.isNotEmpty 
-                ? NetworkImage(_profileImageUrl) 
-                : null,
-            child: _profileImageUrl.isEmpty
-                ? Icon(Icons.person, size: 50, color: Colors.grey.shade700)
-                : null,
-          ),
-        ),
-      ),
-      SizedBox(height: 12),
-      Text(
-        'Welcome, $_username!',
-        style: TextStyle(
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      Text(
-        _fullName,
-        style: TextStyle(
-          fontSize: 16,
-          color: Colors.grey.shade600,
-        ),
-      ),
-      SizedBox(height: 4),
-      Text(
-        'Tap on your profile picture to edit',
-        style: TextStyle(
-          fontSize: 14,
-          color: Colors.grey.shade700,
-        ),
-      ),
-    ],
-  ),
-),
+                // Profile section with picture
+                Center(
+                  child: Column(
+                    children: [
+                      // Profile picture
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ProfilePage(
+                                onProfileUpdated: _loadUserData,
+                              ),
+                            ),
+                          );
+                        },
+                        child: Hero(
+                          tag: 'profilePicture',
+                          child: CircleAvatar(
+                            radius: 50,
+                            backgroundColor: Colors.grey.shade200,
+                            backgroundImage: _profileImageUrl.isNotEmpty 
+                                ? NetworkImage(_profileImageUrl) 
+                                : null,
+                            child: _profileImageUrl.isEmpty
+                                ? Icon(Icons.person, size: 50, color: Colors.grey.shade700)
+                                : null,
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 12),
+                      Text(
+                        'Welcome, $_username!',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        _fullName,
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Tap on your profile picture to edit',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 SizedBox(height: 32),
                 
                 // Menu section
@@ -214,15 +215,19 @@ Center(
                       },
                     ),
                     
-                    // QR Attendance card
+                    // Attendance card - UPDATED
                     _buildFeatureCard(
                       context,
-                      icon: Icons.qr_code_scanner,
+                      icon: Icons.fact_check, // Changed icon to be more relevant to attendance records
                       title: 'Attendance',
                       color: Colors.purple,
                       onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('QR Attendance feature coming soon!')),
+                        // Navigate to the attendance page instead of showing snackbar
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => AttendanceStudentPage(),
+                          ),
                         );
                       },
                     ),

@@ -113,47 +113,119 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                             final startTime = session['startTime'] ?? '';
                             final endTime = session['endTime'] ?? '';
                             
+                            // Check if attendance has been taken for this session
+                            bool hasAttendance = session.containsKey('attendanceRecorded') && 
+                                               session['attendanceRecorded'] == true;
+                            
                             return Card(
                               margin: EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
-                              child: ListTile(
-                                contentPadding: EdgeInsets.all(16.0),
-                                title: Text(
-                                  title,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    SizedBox(height: 6),
-                                    Text(description),
-                                    SizedBox(height: 8),
-                                    Row(
+                              child: Column(
+                                children: [
+                                  ListTile(
+                                    contentPadding: EdgeInsets.all(16.0),
+                                    title: Text(
+                                      title,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    subtitle: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Icon(Icons.access_time, size: 16),
-                                        SizedBox(width: 4),
-                                        Text('$startTime - $endTime'),
+                                        SizedBox(height: 6),
+                                        Text(description),
+                                        SizedBox(height: 8),
+                                        Row(
+                                          children: [
+                                            Icon(Icons.access_time, size: 16),
+                                            SizedBox(width: 4),
+                                            Text('$startTime - $endTime'),
+                                          ],
+                                        ),
+                                        SizedBox(height: 6),
+                                        // Attendance status indicator
+                                        hasAttendance
+                                            ? Row(
+                                                children: [
+                                                  Icon(Icons.check_circle, 
+                                                      color: Colors.green, size: 16),
+                                                  SizedBox(width: 4),
+                                                  Text(
+                                                    'Attendance recorded',
+                                                    style: TextStyle(
+                                                      color: Colors.green,
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ],
+                                              )
+                                            : Row(
+                                                children: [
+                                                  Icon(Icons.pending, 
+                                                      color: Colors.orange, size: 16),
+                                                  SizedBox(width: 4),
+                                                  Text(
+                                                    'Attendance pending',
+                                                    style: TextStyle(
+                                                      color: Colors.orange,
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
                                       ],
                                     ),
-                                  ],
-                                ),
-                                // Add edit and delete buttons for everyone
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: Icon(Icons.edit, color: Colors.blue),
-                                      onPressed: () => _editSession(session, sessionId),
+                                    // Add edit and delete buttons for everyone
+                                    trailing: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          icon: Icon(Icons.edit, color: Colors.blue),
+                                          onPressed: () => _editSession(session, sessionId),
+                                        ),
+                                        IconButton(
+                                          icon: Icon(Icons.delete, color: Colors.red),
+                                          onPressed: () => _confirmDeleteSession(sessionId),
+                                        ),
+                                      ],
                                     ),
-                                    IconButton(
-                                      icon: Icon(Icons.delete, color: Colors.red),
-                                      onPressed: () => _confirmDeleteSession(sessionId),
+                                    onTap: () => _showSessionDetails(session, sessionId),
+                                  ),
+                                  Divider(height: 1),
+                                  // Attendance button row
+                                  InkWell(
+                                    onTap: () => _takeAttendance(sessionId, session),
+                                    child: Container(
+                                      width: double.infinity,
+                                      padding: EdgeInsets.symmetric(vertical: 12.0),
+                                      decoration: BoxDecoration(
+                                        color: hasAttendance ? Colors.grey[100] : Colors.blue[50],
+                                        borderRadius: BorderRadius.only(
+                                          bottomLeft: Radius.circular(4),
+                                          bottomRight: Radius.circular(4),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            hasAttendance ? Icons.edit : Icons.how_to_reg,
+                                            color: hasAttendance ? Colors.grey[700] : Colors.blue,
+                                          ),
+                                          SizedBox(width: 8),
+                                          Text(
+                                            hasAttendance ? 'Edit Attendance' : 'Take Attendance',
+                                            style: TextStyle(
+                                              color: hasAttendance ? Colors.grey[700] : Colors.blue,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ],
-                                ),
-                                onTap: () => _showSessionDetails(session, sessionId),
+                                  ),
+                                ],
                               ),
                             );
                           },
@@ -185,6 +257,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   }
 
   void _showSessionDetails(Map<String, dynamic> session, String sessionId) {
+    // Existing code...
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -243,6 +316,56 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                 style: TextStyle(fontSize: 16),
               ),
               SizedBox(height: 20),
+              
+              // Attendance status
+              if (session.containsKey('attendanceRecorded') && session['attendanceRecorded'] == true)
+                Container(
+                  padding: EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.withOpacity(0.5))
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.green),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Attendance has been recorded for this session',
+                          style: TextStyle(color: Colors.green),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              
+              SizedBox(height: 20),
+              
+              // Take attendance button
+              Container(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context); // Close bottom sheet
+                    _takeAttendance(sessionId, session);
+                  },
+                  icon: Icon(session.containsKey('attendanceRecorded') && 
+                             session['attendanceRecorded'] == true ? 
+                             Icons.edit : Icons.how_to_reg),
+                  label: Text(session.containsKey('attendanceRecorded') && 
+                              session['attendanceRecorded'] == true ? 
+                              'Edit Attendance' : 'Take Attendance'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              
+              SizedBox(height: 12),
+              
               // Actions row - Edit and Delete buttons
               Row(
                 children: [
@@ -283,7 +406,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
     );
   }
 
-  // Helper method to parse time string to TimeOfDay
+  // Existing helper methods
   TimeOfDay _parseTimeOfDay(String timeString) {
     try {
       final parts = timeString.split(':');
@@ -297,9 +420,8 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
     }
   }
 
-  // Method to navigate to edit session page
   void _editSession(Map<String, dynamic> session, String sessionId) {
-    // Navigate to edit screen with existing data
+    // Existing code...
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -317,6 +439,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   }
 
   Future<void> _confirmDeleteSession(String sessionId) async {
+    // Existing code...
     return showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -342,6 +465,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   }
 
   Future<void> _deleteSession(String sessionId) async {
+    // Existing code...
     try {
       await _firestore.collection('training_sessions').doc(sessionId).delete();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -353,4 +477,257 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
       );
     }
   }
-}
+
+  // New attendance methods
+  Future<void> _takeAttendance(String sessionId, Map<String, dynamic> session) async {
+    // Get the session date for the title
+    final sessionDate = DateFormat('EEEE, MMMM d, yyyy')
+        .format((session['date'] as Timestamp).toDate());
+    
+    // Fetch all students
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            content: Row(
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 20),
+                Text('Loading students...'),
+              ],
+            ),
+          );
+        },
+      );
+
+      // Query students (filter by role if needed)
+      QuerySnapshot studentSnapshot = await _firestore
+          .collection('users')
+          .where('role', isEqualTo: 'student')
+          .get();
+      
+      // Close loading dialog
+      Navigator.of(context).pop();
+      
+      if (studentSnapshot.docs.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No students found')),
+        );
+        return;
+      }
+
+      // Get previous attendance data if it exists
+      Map<String, bool> attendanceData = {};
+      DocumentSnapshot sessionDoc = await _firestore
+          .collection('training_sessions')
+          .doc(sessionId)
+          .get();
+      
+      Map<String, dynamic> sessionData = sessionDoc.data() as Map<String, dynamic>;
+      
+      if (sessionData.containsKey('attendance') && 
+          sessionData['attendance'] is Map) {
+        // Convert to the expected format
+        Map<String, dynamic> savedAttendance = sessionData['attendance'];
+        savedAttendance.forEach((key, value) {
+          attendanceData[key] = value as bool;
+        });
+      }
+      
+      // Navigate to attendance taking screen
+      _showAttendanceDialog(
+        context, 
+        sessionId, 
+        session['title'], 
+        sessionDate,
+        studentSnapshot.docs,
+        attendanceData,
+        session, // Pass session map
+      );
+      
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading students: $e')),
+      );
+    }
+  }
+  Future<void> _showAttendanceDialog(
+    BuildContext context,
+    String sessionId,
+    String sessionTitle,
+    String sessionDate,
+    List<QueryDocumentSnapshot> students,
+    Map<String, bool> existingAttendance,
+    Map<String, dynamic> session, // Add session parameter
+  ) async {
+    // Create a map to track attendance
+    Map<String, bool> attendance = Map.from(existingAttendance);
+    
+    // Initialize all students as present if they don't have a record
+    for (var student in students) {
+      String studentId = student.id;
+      if (!attendance.containsKey(studentId)) {
+        attendance[studentId] = false; // Default to absent
+      }
+    }
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Take Attendance'),
+                  SizedBox(height: 4),
+                  Text(
+                    '$sessionTitle - $sessionDate',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.normal,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                ],
+              ),
+              content: Container(
+                width: double.maxFinite,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Mark all present/absent buttons
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              for (var student in students) {
+                                attendance[student.id] = true;
+                              }
+                            });
+                          },
+                          icon: Icon(Icons.group),
+                          label: Text('All Present'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              for (var student in students) {
+                                attendance[student.id] = false;
+                              }
+                            });
+                          },
+                          icon: Icon(Icons.group_off),
+                          label: Text('All Absent'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 10),
+                    Divider(),
+                    SizedBox(height: 10),
+                    // Student list
+                    Container(
+                      height: 300,
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: students.length,
+                        itemBuilder: (context, index) {
+                          var student = students[index].data() as Map<String, dynamic>;
+                          String studentId = students[index].id;
+                          String studentName = student['name'] ?? 'Unknown Student';
+                          String studentUsername = student['username'] ?? '';
+                          
+                          return CheckboxListTile(
+                            title: Text(studentName),
+                            subtitle: Text(studentUsername),
+                            value: attendance[studentId] ?? false,
+                            onChanged: (bool? value) {
+                              setState(() {
+                                attendance[studentId] = value ?? false;
+                              });
+                            },
+                            activeColor: Colors.blue,
+                            checkColor: Colors.white,
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    try {
+                      // Update the session with attendance data
+                      await _firestore.collection('training_sessions').doc(sessionId).update({
+                        'attendance': attendance,
+                        'attendanceRecorded': true,
+                        'lastAttendanceUpdate': FieldValue.serverTimestamp(),
+                      });
+
+                      // Update individual attendance records for each student
+                      for (var student in students) {
+                        String studentId = student.id;
+                        bool isPresent = attendance[studentId] ?? false;
+                        
+                        // Create attendance record ID using session and student IDs
+                        String attendanceRecordId = '$sessionId-$studentId';
+                        
+                        // FIX: Use merge: true parameter instead of SetOptions
+                        await _firestore.collection('attendance_records').doc(attendanceRecordId).set({
+                          'sessionId': sessionId,
+                          'sessionTitle': sessionTitle,
+                          'sessionDate': session['date'], // Keep as Timestamp
+                          'startTime': session['startTime'],
+                          'endTime': session['endTime'],
+                          'studentId': studentId,
+                          'present': isPresent,
+                          'recordedBy': widget.userId,
+                          'recordedAt': FieldValue.serverTimestamp(),
+                        }, SetOptions(merge: true)); // FIXED: Using SetOptions for merge
+                      }
+                      
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Attendance recorded successfully')),
+                      );
+                    } catch (e) {
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error recording attendance: $e')),
+                      );
+                    }
+                  },
+                  child: Text('Save Attendance'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+  }
