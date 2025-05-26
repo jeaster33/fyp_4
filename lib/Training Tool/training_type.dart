@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'StudentListPage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 import 'training_course.dart';
 
 class TrainingTypesPage extends StatefulWidget {

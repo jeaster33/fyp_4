@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../Game tool/ScoreboardPage.dart';
+import '../Training Tool/training_page.dart';
 import '../Training Tool/training_type.dart';
 import '../authentication page/splash_screen.dart';
 import 'calender_coach_screen.dart';
@@ -219,24 +220,24 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                         );
                       },
                     ),
-                    // Training card
-                    _buildFeatureCard(
-                      context,
-                      icon: Icons.fitness_center,
-                      title: 'Training',
-                      color: Colors.green,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => TrainingTypesPage(
-                              userId: userId,
-                              displayName: _username,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+// Training card
+_buildFeatureCard(
+  context,
+  icon: Icons.fitness_center,
+  title: 'Training',
+  color: Colors.green,
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TrainingPage(
+          userId: userId,
+          displayName: _username,
+        ),
+      ),
+    );
+  },
+),
                     // Create Session card
                     _buildFeatureCard(
                       context,

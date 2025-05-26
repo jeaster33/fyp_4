@@ -17,6 +17,16 @@ class _TacticBoardPageState extends State<TacticBoardPage> {
     Offset(150, 600), // Team B Player 3
   ];
 
+  // Player names list
+  List<String> playerNames = [
+    'P1', // Team A Player 1
+    'P2', // Team A Player 2
+    'P3', // Team A Player 3
+    'P1', // Team B Player 1
+    'P2', // Team B Player 2
+    'P3', // Team B Player 3
+  ];
+
   bool isSketchMode = false; // Indicates if sketch mode is enabled or disabled.
   List<Offset> drawingPoints = []; // List of points for freehand drawing.
   final Offset lineBreak = Offset(-1, -1); // Special value to separate different lines in freehand drawing.
@@ -51,19 +61,72 @@ class _TacticBoardPageState extends State<TacticBoardPage> {
     });
   }
 
+  // Show dialog to edit player name
+  void editPlayerName(int index) {
+    final TextEditingController nameController = TextEditingController(text: playerNames[index]);
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text('Edit Player Name'),
+          content: TextField(
+            controller: nameController,
+            decoration: InputDecoration(
+              labelText: 'Player Name',
+              hintText: 'Enter player name',
+            ),
+            autofocus: true,
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text('Cancel'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+            ),
+            ElevatedButton(
+              child: Text('Save'),
+              onPressed: () {
+                setState(() {
+                  playerNames[index] = nameController.text.isNotEmpty ? nameController.text : playerNames[index];
+                });
+                Navigator.of(dialogContext).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   // Builds a circular player widget with a specific index.
   Widget buildPlayer(int index) {
-    return Container(
-      width: 50, // Width of the player widget.
-      height: 50, // Height of the player widget.
-      decoration: BoxDecoration(
-        shape: BoxShape.circle, // Circular shape for the player.
-        color: index < 3 ? Colors.blue : Colors.red, // Blue for Team A, Red for Team B.
-      ),
-      child: Center(
-        child: Text(
-          'P${index + 1}', // Displays the player number.
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold), // White bold text.
+    return GestureDetector(
+      onTap: () {
+        // Only allow editing names when sketch mode is off
+        if (!isSketchMode) {
+          editPlayerName(index);
+        }
+      },
+      child: Container(
+        width: 50, // Width of the player widget.
+        height: 50, // Height of the player widget.
+        decoration: BoxDecoration(
+          shape: BoxShape.circle, // Circular shape for the player.
+          color: index < 3 ? Colors.blue : Colors.red, // Blue for Team A, Red for Team B.
+        ),
+        child: Center(
+          child: Text(
+            playerNames[index], // Use the custom player name
+            style: TextStyle(
+              color: Colors.white, 
+              fontWeight: FontWeight.bold,
+              fontSize: playerNames[index].length > 3 ? 12 : 14, // Smaller font for longer names
+            ),
+            textAlign: TextAlign.center,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       ),
     );
@@ -84,14 +147,45 @@ class _TacticBoardPageState extends State<TacticBoardPage> {
                 color: Colors.brown[500], // Darker brown for the main court area.
                 border: Border.all(color: Colors.white, width: 2), // White border around the court.
               ),
-              child: Column(
+              child: Stack(
                 children: [
-                  Expanded(
-                    child: Container(), // Top half of the court (empty for now).
+                  // Court division line
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: 300,
+                    child: Container(
+                      height: 2,
+                      color: Colors.white,
+                    ),
                   ),
-                  Divider(color: Colors.white, thickness: 2), // White line dividing the court.
-                  Expanded(
-                    child: Container(), // Bottom half of the court (empty for now).
+                  
+                  // Service circle - Team A (top half)
+                  Positioned(
+                    left: 150 - 15,
+                    top: 150 - 15,
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                    ),
+                  ),
+                  
+                  // Service circle - Team B (bottom half)
+                  Positioned(
+                    left: 150 - 15,
+                    top: 450 - 15,
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -102,15 +196,15 @@ class _TacticBoardPageState extends State<TacticBoardPage> {
         // Players on the court.
         for (int i = 0; i < playerPositions.length; i++)
           Positioned(
-            left: playerPositions[i].dx - 25, // Adjusted x-position to center the player widget.
-            top: playerPositions[i].dy - 25, // Adjusted y-position to center the player widget.
+            left: playerPositions[i].dx - 25,
+            top: playerPositions[i].dy - 25,
             child: GestureDetector(
               onPanUpdate: (details) {
                 setState(() {
-                  playerPositions[i] = playerPositions[i] + details.delta; // Update position as the user drags.
+                  playerPositions[i] = playerPositions[i] + details.delta;
                 });
               },
-              child: buildPlayer(i), // Build the player widget.
+              child: buildPlayer(i),
             ),
           ),
 

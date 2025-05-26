@@ -648,7 +648,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                         itemBuilder: (context, index) {
                           var student = students[index].data() as Map<String, dynamic>;
                           String studentId = students[index].id;
-                          String studentName = student['name'] ?? 'Unknown Student';
+                          String studentName = student['fullName'] ?? 'Unknown Student';
                           String studentUsername = student['username'] ?? '';
                           
                           return CheckboxListTile(
