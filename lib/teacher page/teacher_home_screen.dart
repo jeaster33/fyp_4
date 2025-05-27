@@ -5,6 +5,7 @@ import '../Game tool/ScoreboardPage.dart';
 import '../Training Tool/training_page.dart';
 import '../Training Tool/training_type.dart';
 import '../authentication page/splash_screen.dart';
+import '../Generate_report.dart'; // Added import for report generation
 import 'calender_coach_screen.dart';
 import 'schedule_date_screen.dart';
 import 'teacher_profile_page.dart';
@@ -220,24 +221,24 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                         );
                       },
                     ),
-// Training card
-_buildFeatureCard(
-  context,
-  icon: Icons.fitness_center,
-  title: 'Training',
-  color: Colors.green,
-  onTap: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => TrainingPage(
-          userId: userId,
-          displayName: _username,
-        ),
-      ),
-    );
-  },
-),
+                    // Training card
+                    _buildFeatureCard(
+                      context,
+                      icon: Icons.fitness_center,
+                      title: 'Training',
+                      color: Colors.green,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => TrainingPage(
+                              userId: userId,
+                              displayName: _username,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                     // Create Session card
                     _buildFeatureCard(
                       context,
@@ -273,6 +274,66 @@ _buildFeatureCard(
                       },
                     ),
                   ],
+                ),
+                
+                // Add the full-width report generation bar
+                SizedBox(height: 20),
+                
+                Card(
+                  elevation: 4,
+                  color: Colors.red.shade50,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: Colors.red.shade300, width: 1.5),
+                  ),
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => GenerateReportPage(
+                            coachId: userId,
+                            coachName: _fullName.isNotEmpty ? _fullName : _username,
+                          ),
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 24.0),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Generate Performance Reports',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                    color: Colors.red.shade800,
+                                  ),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  'Create detailed student progress reports with charts and analysis',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.red.shade700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(
+                            Icons.arrow_forward_ios,
+                            color: Colors.red.shade700,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
                 
                 SizedBox(height: 24),
