@@ -15,13 +15,10 @@ class AuthWrapper extends StatelessWidget {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-        // Show loading indicator while checking auth state
+        // Show login screen while checking auth state (instead of splash)
+        // This prevents users from getting stuck at splash after sign out
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Scaffold(
-            body: Center(
-              child: CircularProgressIndicator(),
-            ),
-          );
+          return LoginScreen();
         }
         
         // If not authenticated, show login screen
@@ -40,7 +37,14 @@ class AuthWrapper extends StatelessWidget {
             if (userSnapshot.connectionState == ConnectionState.waiting) {
               return Scaffold(
                 body: Center(
-                  child: CircularProgressIndicator(),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text('Loading your profile...'),
+                    ],
+                  ),
                 ),
               );
             }
@@ -52,12 +56,15 @@ class AuthWrapper extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      Icon(Icons.error, size: 64, color: Colors.red),
+                      SizedBox(height: 16),
                       Text('Error loading user data'),
+                      SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: () async {
                           await FirebaseAuth.instance.signOut();
                         },
-                        child: Text('Sign Out'),
+                        child: Text('Sign Out & Try Again'),
                       ),
                     ],
                   ),
@@ -67,18 +74,20 @@ class AuthWrapper extends StatelessWidget {
             
             // Check if user document exists
             if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
-              // Special handling for admin (optional - you might want to store admin in Firestore too)
+              // Special handling for admin
               if (snapshot.data!.email == 'admin@gmail.com') {
                 return AdminScreen();
               }
               
-              // User exists in Auth but not in Firestore - unusual situation
               return Scaffold(
                 body: Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      Icon(Icons.person_off, size: 64, color: Colors.orange),
+                      SizedBox(height: 16),
                       Text('User profile not found'),
+                      SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: () async {
                           await FirebaseAuth.instance.signOut();
@@ -95,7 +104,7 @@ class AuthWrapper extends StatelessWidget {
             try {
               String role = userSnapshot.data!.get('role') as String;
               
-              switch (role) {
+              switch (role.toLowerCase()) {
                 case 'admin':
                   return AdminScreen();
                 case 'student':
@@ -103,17 +112,19 @@ class AuthWrapper extends StatelessWidget {
                 case 'teacher':
                   return TeacherHomeScreen();
                 default:
-                  return HomeScreen(); // Default screen for unknown roles
+                  return HomeScreen();
               }
             } catch (e) {
-              // Handle missing or invalid role field
               print('Error getting role: $e');
               return Scaffold(
                 body: Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      Icon(Icons.warning, size: 64, color: Colors.orange),
+                      SizedBox(height: 16),
                       Text('User role not defined'),
+                      SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: () async {
                           await FirebaseAuth.instance.signOut();

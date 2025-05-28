@@ -9,7 +9,8 @@ class SplashScreen extends StatefulWidget {
   _SplashScreenState createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _animation;
 
@@ -26,14 +27,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     );
     _animationController.forward();
 
-    // Auto navigate to login screen after 3 seconds
-    Timer(
-      const Duration(seconds: 3),
-      () => Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => LoginScreen()),
-      ),
-    );
+    // Remove the Timer - let AuthWrapper handle navigation
   }
 
   @override
@@ -62,7 +56,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Logo with shadow
+                // Your existing splash screen content
                 Container(
                   width: 150,
                   height: 150,
@@ -79,14 +73,13 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   ),
                   child: Center(
                     child: Icon(
-                      Icons.sports_volleyball, // Takraw-like icon
+                      Icons.sports_volleyball,
                       size: 80,
                       color: Colors.blue.shade800,
                     ),
                   ),
                 ),
                 const SizedBox(height: 30),
-                // App name with style
                 Text(
                   'TAKRAW THRILL',
                   style: TextStyle(
@@ -113,7 +106,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   ),
                 ),
                 const SizedBox(height: 50),
-                // Loading indicator
                 const CircularProgressIndicator(
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),

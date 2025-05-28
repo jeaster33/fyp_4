@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'dart:math';
 import 'package:firebase_storage/firebase_storage.dart';
 
 class TeacherProfilePage extends StatefulWidget {
@@ -101,58 +102,80 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
     }
   }
   
+  // FIXED PICK IMAGE METHOD
   Future<void> _pickImage() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-    
-    if (image != null) {
-      setState(() {
-        _isLoading = true;
-      });
-      
-      try {
-        // Upload to Firebase Storage
-        String uid = _auth.currentUser?.uid ?? '';
-        File imageFile = File(image.path);
-        String fileName = 'profile_images/$uid.jpg';
-        
-        // Upload file
-        await _storage.ref(fileName).putFile(imageFile);
-        
-        // Get download URL
-        String downloadUrl = await _storage.ref(fileName).getDownloadURL();
-        
-        // Update user profile with new image URL
-        await _firestore.collection('users').doc(uid).update({
-          'profileImageUrl': downloadUrl,
-        });
-        
-        // Update local state
-        setState(() {
-          _profileImageUrl = downloadUrl;
-        });
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Profile picture updated')),
-        );
-        
-        // Notify parent widget if needed
-        if (widget.onProfileUpdated != null) {
-          widget.onProfileUpdated!();
-        }
-      } catch (e) {
-        print('Error uploading image: $e');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update profile picture')),
-        );
-      } finally {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+    try {
+      // Show a modal bottom sheet with options
+      await showModalBottomSheet(
+        context: context,
+        builder: (BuildContext context) {
+          return SafeArea(
+            child: Wrap(
+              children: [
+                ListTile(
+                  leading: Icon(Icons.photo_library),
+                  title: Text('Choose from Gallery'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _getImage(ImageSource.gallery);
+                  },
+                ),
+                ListTile(
+                  leading: Icon(Icons.camera_alt),
+                  title: Text('Take a Photo'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _getImage(ImageSource.camera);
+                  },
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      print('Error showing image picker options: $e');
     }
   }
   
+  // FIXED IMAGE UPLOAD METHOD
+// Change this in your TeacherProfilePage
+Future<void> _getImage(ImageSource source) async {
+  try {
+    final XFile? image = await ImagePicker().pickImage(source: source);
+    if (image == null) return;
+    
+    setState(() => _isLoading = true);
+    
+    // Updated path to match your current rules
+    final ref = FirebaseStorage.instance.ref()
+        .child('users')                          // Changed
+        .child(_auth.currentUser!.uid)           // Changed
+        .child('profile_picture.jpg');           // Changed
+    
+    await ref.putFile(File(image.path));
+    final url = await ref.getDownloadURL();
+    
+    await _firestore.collection('users')
+        .doc(_auth.currentUser!.uid)
+        .update({'profileImageUrl': url});
+    
+    setState(() {
+      _profileImageUrl = url;
+      _isLoading = false;
+    });
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Profile updated successfully')),
+    );
+    
+  } catch (e) {
+    setState(() => _isLoading = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error: $e')),
+    );
+  }
+}
   Future<void> _updateProfile() async {
     if (_fullNameController.text.isEmpty || _phoneNumberController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(

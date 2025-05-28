@@ -20,72 +20,49 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   final _formKey = GlobalKey<FormState>();
 
-  // Function to handle user login - maintaining your existing logic
-  Future<void> _login() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-    
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      // Sign in with email and password
-      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-        email: _emailController.text,
-        password: _passwordController.text,
-      );
-
-      // Check user role and navigate to the appropriate screen
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userCredential.user!.uid)
-          .get();
-          
-      if (userDoc.exists) {
-        String role = userDoc['role'];
-        print('User role: $role'); // Debug output
-        
-        if (role == 'student') {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => StudentHomeScreen()),
-          );
-        } else if (role == 'teacher') {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => TeacherHomeScreen()),
-          );
-        } else if (role == 'admin') {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => AdminScreen()),
-          );
-        } else {
-          _showErrorMessage('Unknown role: $role');
-        }
-      } else {
-        _showErrorMessage('User document does not exist');
-      }
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'user-not-found') {
-        _showErrorMessage('No user found with this email');
-      } else if (e.code == 'wrong-password') {
-        _showErrorMessage('Incorrect password');
-      } else {
-        _showErrorMessage('Login error: ${e.message}');
-      }
-    } catch (e) {
-      _showErrorMessage('Failed to sign in: $e');
-      print(e);
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
+// In your LoginScreen, replace the _login method with this:
+Future<void> _login() async {
+  if (!_formKey.currentState!.validate()) {
+    return;
   }
+  
+  setState(() {
+    _isLoading = true;
+  });
 
+  try {
+    // Just authenticate - let AuthWrapper handle navigation automatically
+    await _auth.signInWithEmailAndPassword(
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+    );
+    
+    // Don't navigate here - AuthWrapper will detect the auth state change
+    // and automatically navigate to the appropriate screen
+    
+  } on FirebaseAuthException catch (e) {
+    // Handle errors and set loading to false
+    setState(() {
+      _isLoading = false;
+    });
+    
+    if (e.code == 'user-not-found') {
+      _showErrorMessage('No user found with this email');
+    } else if (e.code == 'wrong-password') {
+      _showErrorMessage('Incorrect password');
+    } else {
+      _showErrorMessage('Login error: ${e.message}');
+    }
+  } catch (e) {
+    setState(() {
+      _isLoading = false;
+    });
+    _showErrorMessage('Failed to sign in: $e');
+    print(e);
+  }
+  
+  // Don't set _isLoading = false here since AuthWrapper will handle navigation
+}
   void _showErrorMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

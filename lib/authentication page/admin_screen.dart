@@ -170,13 +170,17 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   // Function to handle user sign out
-  Future<void> _signOut(BuildContext context) async {
+// In AdminScreen, update the _signOut method:
+Future<void> _signOut(BuildContext context) async {
+  try {
     await FirebaseAuth.instance.signOut();
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => SplashScreen()),
+    // Don't manually navigate - AuthWrapper will handle it automatically
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error signing out: $e')),
     );
   }
+}
 
   @override
   Widget build(BuildContext context) {

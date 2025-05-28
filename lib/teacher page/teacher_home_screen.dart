@@ -60,13 +60,17 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
     }
   }
 
-  Future<void> _signOut(BuildContext context) async {
-    await _auth.signOut();
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => SplashScreen()),
+  // In TeacherHomeScreen, update the _signOut method:
+Future<void> _signOut(BuildContext context) async {
+  try {
+    await FirebaseAuth.instance.signOut();
+    // Don't manually navigate - AuthWrapper will handle it automatically
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error signing out: $e')),
     );
   }
+}
 
   @override
   Widget build(BuildContext context) {
