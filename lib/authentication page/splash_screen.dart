@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'login_screen.dart';
+import 'authentication_state.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -27,7 +27,12 @@ class _SplashScreenState extends State<SplashScreen>
     );
     _animationController.forward();
 
-    // Remove the Timer - let AuthWrapper handle navigation
+    // Add Timer to navigate to AuthWrapper after 3 seconds
+    Timer(const Duration(seconds: 3), () {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => AuthWrapper()),
+      );
+    });
   }
 
   @override
@@ -38,6 +43,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Your existing splash screen UI
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -56,7 +62,6 @@ class _SplashScreenState extends State<SplashScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Your existing splash screen content
                 Container(
                   width: 150,
                   height: 150,

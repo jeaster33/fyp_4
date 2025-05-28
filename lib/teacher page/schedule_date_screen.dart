@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../service/notification_service.dart';
+
 class ScheduleDateScreen extends StatefulWidget {
   final String userId;
   final String? existingSessionId; // For editing existing sessions
@@ -140,78 +142,86 @@ class _ScheduleDateScreenState extends State<ScheduleDateScreen> {
   }
 
   // New function to send notifications
-  Future<void> _sendNotifications(String sessionId, bool isNewSession) async {
-    try {
-      // Get coach name for the notification
-      DocumentSnapshot coachDoc = await _firestore.collection('users').doc(widget.userId).get();
-      String coachName = 'Coach';
-      if (coachDoc.exists) {
-        Map<String, dynamic> coachData = coachDoc.data() as Map<String, dynamic>;
-        coachName = coachData['fullName'] ?? 'Coach';
-      }
+// Updated _sendNotifications method in schedule_date_screen.dart
+Future<void> _sendNotifications(String sessionId, bool isNewSession) async {
+  try {
+    // Get coach name for the notification
+    DocumentSnapshot coachDoc = await _firestore.collection('users').doc(widget.userId).get();
+    String coachName = 'Coach';
+    if (coachDoc.exists) {
+      Map<String, dynamic> coachData = coachDoc.data() as Map<String, dynamic>;
+      coachName = coachData['fullName'] ?? 'Coach';
+    }
 
-      // Get all students from Firestore
-      QuerySnapshot studentsSnapshot = await _firestore
-          .collection('users')
-          .where('role', isEqualTo: 'student')
-          .get();
+    // Get all students from Firestore
+    QuerySnapshot studentsSnapshot = await _firestore
+        .collection('users')
+        .where('role', isEqualTo: 'student')
+        .get();
+    
+    // Create a batch for efficient writes
+    WriteBatch batch = _firestore.batch();
+    
+    // Get session details for notification content
+    String title = _titleController.text;
+    String formattedDate = DateFormat('EEEE, MMMM d, yyyy').format(selectedDate);
+    String timeRange = '${startTime.format(context)} - ${endTime.format(context)}';
+    
+    // Create notification message based on whether it's new or updated
+    String studentMessage = isNewSession
+        ? "$coachName has scheduled a new training session: $title on $formattedDate at $timeRange"
+        : "$coachName has updated a training session: $title on $formattedDate at $timeRange";
+    
+    String teacherMessage = isNewSession 
+        ? "You have scheduled a new training session: $title on $formattedDate at $timeRange" 
+        : "You have updated a training session: $title on $formattedDate at $timeRange";
+
+    // First create a notification for the teacher (creator)
+    DocumentReference teacherNotificationRef = _firestore.collection('notifications').doc();
+    batch.set(teacherNotificationRef, {
+      'userId': widget.userId,
+      'sessionId': sessionId,
+      'title': isNewSession ? 'New Session Created' : 'Session Updated',
+      'message': teacherMessage,
+      'date': formattedDate,
+      'time': timeRange,
+      'isRead': false,
+      'createdAt': FieldValue.serverTimestamp(),
+      'type': 'schedule',
+    });
+    
+    // Then create notifications for all students
+    for (var studentDoc in studentsSnapshot.docs) {
+      String studentId = studentDoc.id;
       
-      // Create a batch for efficient writes
-      WriteBatch batch = _firestore.batch();
-      
-      // Get session details for notification content
-      String title = _titleController.text;
-      String formattedDate = DateFormat('EEEE, MMMM d, yyyy').format(selectedDate);
-      String timeRange = '${startTime.format(context)} - ${endTime.format(context)}';
-      
-      // Create notification message based on whether it's new or updated
-      String message = isNewSession
-          ? "$coachName has scheduled a new training session: $title on $formattedDate at $timeRange"
-          : "$coachName has updated a training session: $title on $formattedDate at $timeRange";
-      
-      // First create a notification for the teacher (creator)
-      DocumentReference teacherNotificationRef = _firestore.collection('notifications').doc();
-      batch.set(teacherNotificationRef, {
-        'userId': widget.userId,
+      DocumentReference studentNotificationRef = _firestore.collection('notifications').doc();
+      batch.set(studentNotificationRef, {
+        'userId': studentId,
         'sessionId': sessionId,
-        'title': isNewSession ? 'New Session Created' : 'Session Updated',
-        'message': isNewSession 
-            ? "You have scheduled a new training session: $title" 
-            : "You have updated a training session: $title",
+        'title': isNewSession ? 'New Training Session' : 'Training Session Updated',
+        'message': studentMessage,
         'date': formattedDate,
         'time': timeRange,
         'isRead': false,
         'createdAt': FieldValue.serverTimestamp(),
         'type': 'schedule',
       });
-      
-      // Then create notifications for all students
-      for (var studentDoc in studentsSnapshot.docs) {
-        String studentId = studentDoc.id;
-        
-        DocumentReference studentNotificationRef = _firestore.collection('notifications').doc();
-        batch.set(studentNotificationRef, {
-          'userId': studentId,
-          'sessionId': sessionId,
-          'title': isNewSession ? 'New Training Session' : 'Training Session Updated',
-          'message': message,
-          'date': formattedDate,
-          'time': timeRange,
-          'isRead': false,
-          'createdAt': FieldValue.serverTimestamp(),
-          'type': 'schedule',
-        });
-      }
-      
-      // Commit all notifications in a single batch
-      await batch.commit();
-      
-      print('Notifications sent successfully to teacher and ${studentsSnapshot.docs.length} students');
-    } catch (e) {
-      print('Error sending notifications: $e');
-      // Don't throw the error - we don't want to fail the whole operation if just notifications fail
     }
+    
+    // Commit all notifications in a single batch
+    await batch.commit();
+
+    // Send immediate local notification to current user (for testing)
+    await NotificationService.sendLocalNotification(
+      title: isNewSession ? 'Session Created' : 'Session Updated',
+      body: teacherMessage,
+    );
+    
+    print('Notifications sent successfully to teacher and ${studentsSnapshot.docs.length} students');
+  } catch (e) {
+    print('Error sending notifications: $e');
   }
+}
 
   Future<void> _saveSchedule() async {
     if (_titleController.text.isEmpty) {
