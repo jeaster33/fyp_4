@@ -25,6 +25,7 @@ class _AdminScreenState extends State<AdminScreen> {
   
   DateTime _selectedDate = DateTime.now();
   final TextEditingController _dateController = TextEditingController();
+  String _selectedRole = '';
 
   @override
   void initState() {
@@ -32,7 +33,6 @@ class _AdminScreenState extends State<AdminScreen> {
     _dateController.text = DateFormat('yyyy-MM-dd').format(_selectedDate);
   }
 
-  // Function to pick date
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -42,8 +42,8 @@ class _AdminScreenState extends State<AdminScreen> {
       builder: (context, child) {
         return Theme(
           data: ThemeData.light().copyWith(
-            primaryColor: Colors.blue,
-            colorScheme: ColorScheme.light(primary: Colors.blue),
+            primaryColor: Color(0xFF667eea),
+            colorScheme: ColorScheme.light(primary: Color(0xFF667eea)),
             buttonTheme: ButtonThemeData(textTheme: ButtonTextTheme.primary),
           ),
           child: child!,
@@ -58,7 +58,6 @@ class _AdminScreenState extends State<AdminScreen> {
     }
   }
 
-  // Function to check if username already exists
   Future<bool> _usernameExists(String username) async {
     final querySnapshot = await _firestore
         .collection('users')
@@ -67,7 +66,6 @@ class _AdminScreenState extends State<AdminScreen> {
     return querySnapshot.docs.isNotEmpty;
   }
 
-  // Function to create a user with a specific role and additional info
   Future<void> createUserWithRole(
     String email, 
     String password, 
@@ -80,53 +78,55 @@ class _AdminScreenState extends State<AdminScreen> {
     String username
   ) async {
     try {
-      // Show loading indicator
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (BuildContext context) {
           return Center(
-            child: CircularProgressIndicator(),
+            child: Container(
+              padding: EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(color: Color(0xFF667eea)),
+                  SizedBox(height: 15),
+                  Text('Creating user...', style: TextStyle(color: Color(0xFF2d3748))),
+                ],
+              ),
+            ),
           );
         },
       );
       
-      // Validate input fields
       if (email.isEmpty || password.isEmpty || role.isEmpty || icNumber.isEmpty || 
           phoneNumber.isEmpty || fullName.isEmpty || username.isEmpty) {
-        Navigator.pop(context); // Close loading dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Please fill all required fields')),
-        );
+        Navigator.pop(context);
+        _showMessage('Please fill all required fields', isError: true);
         return;
       }
       
-      // Validate role
       if (role != 'student' && role != 'teacher' && role != 'admin') {
-        Navigator.pop(context); // Close loading dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Role must be student, teacher, or admin')),
-        );
+        Navigator.pop(context);
+        _showMessage('Role must be student, teacher, or admin', isError: true);
         return;
       }
       
-      // Check if username already exists
       bool usernameAlreadyExists = await _usernameExists(username);
       if (usernameAlreadyExists) {
-        Navigator.pop(context); // Close loading dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Username already exists. Please choose a different one')),
-        );
+        Navigator.pop(context);
+        _showMessage('Username already exists. Please choose a different one', isError: true);
         return;
       }
 
-      // Create user with email and password
       UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      // Create Firestore entry for the user with additional fields
       await _firestore.collection('users').doc(userCredential.user!.uid).set({
         'email': email,
         'role': role,
@@ -137,264 +137,309 @@ class _AdminScreenState extends State<AdminScreen> {
         'fullName': fullName,
         'username': username,
         'createdAt': FieldValue.serverTimestamp(),
-        'profileImageUrl': '', // Empty for now, can be updated later
+        'profileImageUrl': '',
       });
 
-      Navigator.pop(context); // Close loading dialog
-      print('User created with role: $role');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('User registered successfully')),
-      );
-      
-      // Clear form fields after successful registration
-      _emailController.clear();
-      _passwordController.clear();
-      _roleController.clear();
-      _icNumberController.clear();
-      _secondaryEmailController.clear();
-      _phoneNumberController.clear();
-      _fullNameController.clear();
-      _usernameController.clear();
-      setState(() {
-        _selectedDate = DateTime.now();
-        _dateController.text = DateFormat('yyyy-MM-dd').format(_selectedDate);
-      });
+      Navigator.pop(context);
+      _showMessage('User registered successfully!', isError: false);
+      _clearForm();
       
     } catch (e) {
-      Navigator.pop(context); // Close loading dialog
-      print('Error creating user: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to register user: $e')),
-      );
+      Navigator.pop(context);
+      _showMessage('Failed to register user: $e', isError: true);
     }
   }
 
-  // Function to handle user sign out
-// In AdminScreen, update the _signOut method:
-Future<void> _signOut(BuildContext context) async {
-  try {
-    await FirebaseAuth.instance.signOut();
-    // Don't manually navigate - AuthWrapper will handle it automatically
-  } catch (e) {
+  void _showMessage(String message, {required bool isError}) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error signing out: $e')),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red.shade600 : Color(0xFF43e97b),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
-}
+
+  void _clearForm() {
+    _emailController.clear();
+    _passwordController.clear();
+    _roleController.clear();
+    _icNumberController.clear();
+    _secondaryEmailController.clear();
+    _phoneNumberController.clear();
+    _fullNameController.clear();
+    _usernameController.clear();
+    setState(() {
+      _selectedRole = '';
+      _selectedDate = DateTime.now();
+      _dateController.text = DateFormat('yyyy-MM-dd').format(_selectedDate);
+    });
+  }
+
+  Future<void> _signOut(BuildContext context) async {
+    try {
+      await FirebaseAuth.instance.signOut();
+    } catch (e) {
+      _showMessage('Error signing out: $e', isError: true);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Admin Panel'),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.logout),
-            onPressed: () => _signOut(context),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF667eea),
+              Color(0xFFf093fb).withOpacity(0.1),
+              Colors.white,
+            ],
           ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Register New User',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 20),
-            
-            // Full Name field
-            TextField(
-              controller: _fullNameController,
-              decoration: InputDecoration(
-                labelText: 'Full Name *',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10.0),
-                ),
-                prefixIcon: Icon(Icons.person),
-              ),
-              textCapitalization: TextCapitalization.words,
-            ),
-            SizedBox(height: 12),
-            
-            // Username field
-            TextField(
-              controller: _usernameController,
-              decoration: InputDecoration(
-                labelText: 'Username *',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10.0),
-                ),
-                prefixIcon: Icon(Icons.account_circle),
-                hintText: 'Unique username for login',
-              ),
-            ),
-            SizedBox(height: 12),
-            
-            // Email field
-            TextField(
-              controller: _emailController,
-              decoration: InputDecoration(
-                labelText: 'Email *',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10.0),
-                ),
-                prefixIcon: Icon(Icons.email),
-              ),
-              keyboardType: TextInputType.emailAddress,
-            ),
-            SizedBox(height: 12),
-            
-            // Password field
-            TextField(
-              controller: _passwordController,
-              decoration: InputDecoration(
-                labelText: 'Password *',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10.0),
-                ),
-                prefixIcon: Icon(Icons.lock),
-                helperText: 'Minimum 6 characters',
-              ),
-              obscureText: true,
-            ),
-            SizedBox(height: 12),
-            
-            // Role field with dropdown
-            DropdownButtonFormField<String>(
-              decoration: InputDecoration(
-                labelText: 'Role *',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10.0),
-                ),
-                prefixIcon: Icon(Icons.badge),
-              ),
-              items: ['student', 'teacher', 'admin'].map((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value.charAt(0).toUpperCase() + value.substring(1)),
-                );
-              }).toList(),
-              onChanged: (value) {
-                _roleController.text = value!;
-              },
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please select a role';
-                }
-                return null;
-              },
-            ),
-            SizedBox(height: 12),
-            
-            // IC Number field
-            TextField(
-              controller: _icNumberController,
-              decoration: InputDecoration(
-                labelText: 'IC Number *',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10.0),
-                ),
-                prefixIcon: Icon(Icons.credit_card),
-              ),
-            ),
-            SizedBox(height: 12),
-            
-            // Date of Birth field
-            GestureDetector(
-              onTap: () => _selectDate(context),
-              child: AbsorbPointer(
-                child: TextField(
-                  controller: _dateController,
-                  decoration: InputDecoration(
-                    labelText: 'Date of Birth *',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10.0),
+        ),
+        child: SafeArea(
+          child: CustomScrollView(
+            slivers: [
+              SliverAppBar(
+                expandedHeight: 120,
+                floating: false,
+                pinned: true,
+                backgroundColor: Colors.transparent,
+                flexibleSpace: FlexibleSpaceBar(
+                  title: Text(
+                    'Admin Panel',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
                     ),
-                    prefixIcon: Icon(Icons.calendar_today),
-                    suffixIcon: Icon(Icons.arrow_drop_down),
+                  ),
+                  background: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                      ),
+                    ),
+                  ),
+                ),
+                actions: [
+                  IconButton(
+                    icon: Icon(Icons.logout, color: Colors.white),
+                    onPressed: () => _signOut(context),
+                  ),
+                ],
+              ),
+              
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 20,
+                          offset: Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    padding: EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                                ),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(Icons.person_add, color: Colors.white),
+                            ),
+                            SizedBox(width: 12),
+                            Text(
+                              'Register New User',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF2d3748),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 24),
+                        
+                        _buildTextField(_fullNameController, 'Full Name', Icons.person, isRequired: true),
+                        _buildTextField(_usernameController, 'Username', Icons.account_circle, isRequired: true),
+                        _buildTextField(_emailController, 'Email', Icons.email, isRequired: true, keyboardType: TextInputType.emailAddress),
+                        _buildTextField(_passwordController, 'Password', Icons.lock, isRequired: true, isPassword: true),
+                        
+                        // Role dropdown
+                        Container(
+                          margin: EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: DropdownButtonFormField<String>(
+                            decoration: InputDecoration(
+                              labelText: 'Role *',
+                              prefixIcon: Icon(Icons.badge, color: Color(0xFF667eea)),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(15),
+                                borderSide: BorderSide.none,
+                              ),
+                              labelStyle: TextStyle(color: Color(0xFF667eea)),
+                            ),
+                            value: _selectedRole.isEmpty ? null : _selectedRole,
+                            items: [
+                              DropdownMenuItem(value: 'student', child: Text('Student')),
+                              DropdownMenuItem(value: 'teacher', child: Text('Teacher')),
+                              DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                            ],
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedRole = value!;
+                                _roleController.text = value;
+                              });
+                            },
+                          ),
+                        ),
+                        
+                        _buildTextField(_icNumberController, 'IC Number', Icons.credit_card, isRequired: true),
+                        
+                        // Date picker
+                        Container(
+                          margin: EdgeInsets.only(bottom: 16),
+                          child: GestureDetector(
+                            onTap: () => _selectDate(context),
+                            child: AbsorbPointer(
+                              child: TextFormField(
+                                controller: _dateController,
+                                decoration: InputDecoration(
+                                  labelText: 'Date of Birth *',
+                                  prefixIcon: Icon(Icons.calendar_today, color: Color(0xFF667eea)),
+                                  suffixIcon: Icon(Icons.arrow_drop_down, color: Color(0xFF667eea)),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(15),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.grey.shade50,
+                                  labelStyle: TextStyle(color: Color(0xFF667eea)),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        
+                        _buildTextField(_phoneNumberController, 'Phone Number', Icons.phone, isRequired: true, keyboardType: TextInputType.phone),
+                        _buildTextField(_secondaryEmailController, 'Secondary Email', Icons.alternate_email, keyboardType: TextInputType.emailAddress),
+                        
+                        SizedBox(height: 24),
+                        
+                        // Register button
+                        Container(
+                          width: double.infinity,
+                          height: 55,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                            ),
+                            borderRadius: BorderRadius.circular(15),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Color(0xFF667eea).withOpacity(0.3),
+                                blurRadius: 15,
+                                offset: Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: ElevatedButton(
+                            onPressed: () {
+                              createUserWithRole(
+                                _emailController.text,
+                                _passwordController.text,
+                                _roleController.text,
+                                _icNumberController.text,
+                                _selectedDate,
+                                _secondaryEmailController.text,
+                                _phoneNumberController.text,
+                                _fullNameController.text,
+                                _usernameController.text,
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              shadowColor: Colors.transparent,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                            ),
+                            child: Text(
+                              'REGISTER USER',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                        
+                        SizedBox(height: 12),
+                        Text(
+                          '* Required fields',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontStyle: FontStyle.italic,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            SizedBox(height: 12),
-            
-            // Phone Number field
-            TextField(
-              controller: _phoneNumberController,
-              decoration: InputDecoration(
-                labelText: 'Phone Number *',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10.0),
-                ),
-                prefixIcon: Icon(Icons.phone),
-              ),
-              keyboardType: TextInputType.phone,
-            ),
-            SizedBox(height: 12),
-            
-            // Secondary Email field
-            TextField(
-              controller: _secondaryEmailController,
-              decoration: InputDecoration(
-                labelText: 'Secondary Email',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10.0),
-                ),
-                prefixIcon: Icon(Icons.alternate_email),
-                hintText: 'Optional',
-              ),
-              keyboardType: TextInputType.emailAddress,
-            ),
-            SizedBox(height: 24),
-            
-            // Register button
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: () {
-                  createUserWithRole(
-                    _emailController.text,
-                    _passwordController.text,
-                    _roleController.text,
-                    _icNumberController.text,
-                    _selectedDate,
-                    _secondaryEmailController.text,
-                    _phoneNumberController.text,
-                    _fullNameController.text,
-                    _usernameController.text,
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                child: Text(
-                  'Register User',
-                  style: TextStyle(fontSize: 16),
-                ),
-              ),
-            ),
-            SizedBox(height: 12),
-            Text(
-              '* Required fields',
-              style: TextStyle(
-                color: Colors.grey,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField(
+    TextEditingController controller,
+    String label,
+    IconData icon, {
+    bool isRequired = false,
+    bool isPassword = false,
+    TextInputType? keyboardType,
+  }) {
+    return Container(
+      margin: EdgeInsets.only(bottom: 16),
+      child: TextFormField(
+        controller: controller,
+        obscureText: isPassword,
+        keyboardType: keyboardType,
+        decoration: InputDecoration(
+          labelText: isRequired ? '$label *' : label,
+          prefixIcon: Icon(icon, color: Color(0xFF667eea)),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide.none,
+          ),
+          filled: true,
+          fillColor: Colors.grey.shade50,
+          labelStyle: TextStyle(color: Color(0xFF667eea)),
         ),
       ),
     );
@@ -412,14 +457,5 @@ Future<void> _signOut(BuildContext context) async {
     _usernameController.dispose();
     _dateController.dispose();
     super.dispose();
-  }
-}
-
-// Extension method to capitalize first letter
-extension StringExtension on String {
-  String charAt(int index) {
-    if (this.isEmpty) return '';
-    if (index < 0 || index >= this.length) return '';
-    return this[index];
   }
 }

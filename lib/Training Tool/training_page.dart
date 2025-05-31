@@ -84,7 +84,7 @@ class TrainingPage extends StatelessWidget {
                     _buildFeatureCard(
                       context,
                       icon: Icons.assessment,
-                      title: 'Training Records',
+                      title: 'Records',
                       color: Colors.blue,
                       onTap: () {
                         Navigator.push(

@@ -33,20 +33,11 @@ class _GenerateReportPageState extends State<GenerateReportPage> {
   Map<String, String> _studentNames = {};
   Map<String, dynamic> _studentInfo = {};
   List<Map<String, dynamic>> _studentRecords = [];
-  
-  // Controller for coach notes
-  final TextEditingController _notesController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _loadStudents();
-  }
-
-  @override
-  void dispose() {
-    _notesController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadStudents() async {
@@ -395,7 +386,7 @@ class _GenerateReportPageState extends State<GenerateReportPage> {
         ),
       );
       
-      // Second Page - Coach Notes & Recommendations
+      // Second Page - Performance Analysis & Training Sessions Summary
       pdf.addPage(
         pw.Page(
           pageFormat: PdfPageFormat.a4,
@@ -403,184 +394,182 @@ class _GenerateReportPageState extends State<GenerateReportPage> {
             return pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-// In _generateAndDownloadPDF() method, replace the "Coach Notes" header and container with:
+                // Header (update the page title)
+                pw.Text(
+                  'Performance Analysis - $studentName',
+                  style: pw.TextStyle(
+                    fontSize: 18,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.SizedBox(height: 10),
+                pw.Divider(),
+                pw.SizedBox(height: 20),
 
-// Header (update the page title)
-pw.Text(
-  'Performance Analysis - $studentName',
-  style: pw.TextStyle(
-    fontSize: 18,
-    fontWeight: pw.FontWeight.bold,
-  ),
-),
-pw.SizedBox(height: 10),
-pw.Divider(),
-pw.SizedBox(height: 20),
+                // Keep the existing Performance Analysis section
+                pw.Text(
+                  'Performance Analysis',
+                  style: pw.TextStyle(
+                    fontSize: 16,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.SizedBox(height: 10),
 
-// Keep the existing Performance Analysis section
-pw.Text(
-  'Performance Analysis',
-  style: pw.TextStyle(
-    fontSize: 16,
-    fontWeight: pw.FontWeight.bold,
-  ),
-),
-pw.SizedBox(height: 10),
+                pw.Container(
+                  padding: pw.EdgeInsets.all(10),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.grey100,
+                    borderRadius: pw.BorderRadius.circular(5),
+                  ),
+                  child: pw.Text(_generateAnalysisText(trainingData)),
+                ),
 
-pw.Container(
-  padding: pw.EdgeInsets.all(10),
-  decoration: pw.BoxDecoration(
-    color: PdfColors.grey100,
-    borderRadius: pw.BorderRadius.circular(5),
-  ),
-  child: pw.Text(_generateAnalysisText(trainingData)),
-),
+                pw.SizedBox(height: 30),
 
-pw.SizedBox(height: 30),
+                // Training Sessions Summary
+                pw.Text(
+                  'Training Sessions Summary',
+                  style: pw.TextStyle(
+                    fontSize: 16,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.SizedBox(height: 10),
 
-// Replace Coach Notes with Training Sessions Summary
-pw.Text(
-  'Training Sessions Summary',
-  style: pw.TextStyle(
-    fontSize: 16,
-    fontWeight: pw.FontWeight.bold,
-  ),
-),
-pw.SizedBox(height: 10),
+                // Training sessions summary container
+                pw.Container(
+                  padding: pw.EdgeInsets.all(10),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.grey100,
+                    borderRadius: pw.BorderRadius.circular(5),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      // Total training sessions
+                      pw.Row(
+                        children: [
+                          pw.Container(
+                            width: 15,
+                            height: 15,
+                            margin: pw.EdgeInsets.only(right: 8),
+                            decoration: pw.BoxDecoration(
+                              color: PdfColors.red500,
+                              shape: pw.BoxShape.circle,
+                            ),
+                          ),
+                          pw.Text(
+                            'Total Training Sessions: ${trainingData['balanceCount'] + trainingData['spikeCount'] + trainingData['staminaCount']}',
+                            style: pw.TextStyle(
+                              fontSize: 14,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      pw.SizedBox(height: 15),
+                      
+                      // Training sessions by type
+                      pw.Text(
+                        'Sessions by Training Type:',
+                        style: pw.TextStyle(
+                          fontSize: 12,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                      pw.SizedBox(height: 8),
+                      
+                      // Balance training
+                      pw.Row(
+                        children: [
+                          pw.Container(
+                            width: 12,
+                            height: 12,
+                            margin: pw.EdgeInsets.only(right: 8),
+                            decoration: pw.BoxDecoration(
+                              color: PdfColors.green500,
+                              shape: pw.BoxShape.circle,
+                            ),
+                          ),
+                          pw.Text(
+                            'Balance Training: ${trainingData['balanceCount']} sessions',
+                            style: pw.TextStyle(fontSize: 11),
+                          ),
+                        ],
+                      ),
+                      pw.SizedBox(height: 5),
+                      
+                      // Spike training
+                      pw.Row(
+                        children: [
+                          pw.Container(
+                            width: 12,
+                            height: 12,
+                            margin: pw.EdgeInsets.only(right: 8),
+                            decoration: pw.BoxDecoration(
+                              color: PdfColors.blue500,
+                              shape: pw.BoxShape.circle,
+                            ),
+                          ),
+                          pw.Text(
+                            'Spike Training: ${trainingData['spikeCount']} sessions',
+                            style: pw.TextStyle(fontSize: 11),
+                          ),
+                        ],
+                      ),
+                      pw.SizedBox(height: 5),
+                      
+                      // Stamina training
+                      pw.Row(
+                        children: [
+                          pw.Container(
+                            width: 12,
+                            height: 12,
+                            margin: pw.EdgeInsets.only(right: 8),
+                            decoration: pw.BoxDecoration(
+                              color: PdfColors.orange500,
+                              shape: pw.BoxShape.circle,
+                            ),
+                          ),
+                          pw.Text(
+                            'Stamina Training: ${trainingData['staminaCount']} sessions',
+                            style: pw.TextStyle(fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
 
-// Training sessions summary container
-pw.Container(
-  padding: pw.EdgeInsets.all(10),
-  decoration: pw.BoxDecoration(
-    color: PdfColors.grey100,
-    borderRadius: pw.BorderRadius.circular(5),
-  ),
-  child: pw.Column(
-    crossAxisAlignment: pw.CrossAxisAlignment.start,
-    children: [
-      // Total training sessions
-      pw.Row(
-        children: [
-          pw.Container(
-            width: 15,
-            height: 15,
-            margin: pw.EdgeInsets.only(right: 8),
-            decoration: pw.BoxDecoration(
-              color: PdfColors.red500,
-              shape: pw.BoxShape.circle,
-            ),
-          ),
-          pw.Text(
-            'Total Training Sessions: ${trainingData['balanceCount'] + trainingData['spikeCount'] + trainingData['staminaCount']}',
-            style: pw.TextStyle(
-              fontSize: 14,
-              fontWeight: pw.FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-      pw.SizedBox(height: 15),
-      
-      // Training sessions by type
-      pw.Text(
-        'Sessions by Training Type:',
-        style: pw.TextStyle(
-          fontSize: 12,
-          fontWeight: pw.FontWeight.bold,
+                pw.Spacer(),
+                pw.Divider(),
+
+                // Footer
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text(
+                      'Generated by Sepak Takraw Training App',
+                      style: pw.TextStyle(
+                        fontSize: 10,
+                        color: PdfColors.grey700,
+                      ),
+                    ),
+                    pw.Text(
+                      'Page 2',
+                      style: pw.TextStyle(
+                        fontSize: 10,
+                        color: PdfColors.grey700,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
         ),
-      ),
-      pw.SizedBox(height: 8),
-      
-      // Balance training
-      pw.Row(
-        children: [
-          pw.Container(
-            width: 12,
-            height: 12,
-            margin: pw.EdgeInsets.only(right: 8),
-            decoration: pw.BoxDecoration(
-              color: PdfColors.green500,
-              shape: pw.BoxShape.circle,
-            ),
-          ),
-          pw.Text(
-            'Balance Training: ${trainingData['balanceCount']} sessions',
-            style: pw.TextStyle(fontSize: 11),
-          ),
-        ],
-      ),
-      pw.SizedBox(height: 5),
-      
-      // Spike training
-      pw.Row(
-        children: [
-          pw.Container(
-            width: 12,
-            height: 12,
-            margin: pw.EdgeInsets.only(right: 8),
-            decoration: pw.BoxDecoration(
-              color: PdfColors.blue500,
-              shape: pw.BoxShape.circle,
-            ),
-          ),
-          pw.Text(
-            'Spike Training: ${trainingData['spikeCount']} sessions',
-            style: pw.TextStyle(fontSize: 11),
-          ),
-        ],
-      ),
-      pw.SizedBox(height: 5),
-      
-      // Stamina training
-      pw.Row(
-        children: [
-          pw.Container(
-            width: 12,
-            height: 12,
-            margin: pw.EdgeInsets.only(right: 8),
-            decoration: pw.BoxDecoration(
-              color: PdfColors.orange500,
-              shape: pw.BoxShape.circle,
-            ),
-          ),
-          pw.Text(
-            'Stamina Training: ${trainingData['staminaCount']} sessions',
-            style: pw.TextStyle(fontSize: 11),
-          ),
-        ],
-      ),
-    ],
-  ),
-),
-
-pw.Spacer(),
-pw.Divider(),
-
-// Footer
-pw.Row(
-  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-  children: [
-    pw.Text(
-      'Generated by Sepak Takraw Training App',
-      style: pw.TextStyle(
-        fontSize: 10,
-        color: PdfColors.grey700,
-      ),
-    ),
-    pw.Text(
-      'Page 2',
-      style: pw.TextStyle(
-        fontSize: 10,
-        color: PdfColors.grey700,
-      ),
-    ),
-  ],
-),
-],
-);
-},
-),
-);
+      );
       
       // Training Records Pages (Paginate with 20 records per page)
       if (_studentRecords.isNotEmpty) {
@@ -970,68 +959,69 @@ pw.Row(
     );
   }
 
-String _generateAnalysisText(Map<String, dynamic> data) {
-  List<String> analysis = [];
-  
-  // Overall summary
-  int totalTrainings = data['balanceCount'] + data['spikeCount'] + data['staminaCount'];
-  analysis.add('Overall Summary:');
-  analysis.add('- Completed $totalTrainings training sessions');
-  
-  // Balance analysis
-  if (data['balanceCount'] > 0) {
-    analysis.add('\nBalance Training:');
-    analysis.add('- Completed ${data['balanceCount']} balance training sessions');
-    analysis.add('- Best score: ${(data['bestBalanceScore'] as double).toStringAsFixed(1)}/10');
-    analysis.add('- Average score: ${(data['avgBalanceScore'] as double).toStringAsFixed(1)}/10');
+  String _generateAnalysisText(Map<String, dynamic> data) {
+    List<String> analysis = [];
     
-    if (data['balanceTrend'] > 0) {
-      analysis.add('- Balance performance is improving (+${(data['balanceTrend'] as double).toStringAsFixed(1)} points)');
-    } else if (data['balanceTrend'] < 0) {
-      analysis.add('- Balance performance has declined (${(data['balanceTrend'] as double).toStringAsFixed(1)} points)');
-    } else {
-      analysis.add('- Balance performance has remained consistent');
-    }
-  }
-  
-  // Spike analysis
-  if (data['spikeCount'] > 0) {
-    analysis.add('\nSpike Training:');
-    analysis.add('- Completed ${data['spikeCount']} spike training sessions');
-    analysis.add('- Best success rate: ${((data['bestSpikeRate'] as double) * 100).toStringAsFixed(1)}%');
-    analysis.add('- Average success rate: ${((data['avgSpikeRate'] as double) * 100).toStringAsFixed(1)}%');
+    // Overall summary
+    int totalTrainings = data['balanceCount'] + data['spikeCount'] + data['staminaCount'];
+    analysis.add('Overall Summary:');
+    analysis.add('- Completed $totalTrainings training sessions');
     
-    if (data['spikeTrend'] > 0) {
-      analysis.add('- Spike performance is improving (+${((data['spikeTrend'] as double) * 100).toStringAsFixed(1)}%)');
-    } else if (data['spikeTrend'] < 0) {
-      analysis.add('- Spike performance has declined (${((data['spikeTrend'] as double) * 100).toStringAsFixed(1)}%)');
-    } else {
-      analysis.add('- Spike performance has remained consistent');
+    // Balance analysis
+    if (data['balanceCount'] > 0) {
+      analysis.add('\nBalance Training:');
+      analysis.add('- Completed ${data['balanceCount']} balance training sessions');
+      analysis.add('- Best score: ${(data['bestBalanceScore'] as double).toStringAsFixed(1)}/10');
+      analysis.add('- Average score: ${(data['avgBalanceScore'] as double).toStringAsFixed(1)}/10');
+      
+      if (data['balanceTrend'] > 0) {
+        analysis.add('- Balance performance is improving (+${(data['balanceTrend'] as double).toStringAsFixed(1)} points)');
+      } else if (data['balanceTrend'] < 0) {
+        analysis.add('- Balance performance has declined (${(data['balanceTrend'] as double).toStringAsFixed(1)} points)');
+      } else {
+        analysis.add('- Balance performance has remained consistent');
+      }
     }
-  }
-  
-  // Stamina analysis
-  if (data['staminaCount'] > 0) {
-    analysis.add('\nStamina Training:');
-    analysis.add('- Completed ${data['staminaCount']} stamina training sessions');
-    analysis.add('- Best time: ${data['bestStaminaTime']}');
     
-    if (data['staminaTrend'] > 0) {
-      analysis.add('- Stamina performance is improving (${(data['staminaTrend'] * 100).toStringAsFixed(1)}% faster)');
-    } else if (data['staminaTrend'] < 0) {
-      analysis.add('- Stamina performance has declined (${(-data['staminaTrend'] * 100).toStringAsFixed(1)}% slower)');
-    } else {
-      analysis.add('- Stamina performance has remained consistent');
+    // Spike analysis
+    if (data['spikeCount'] > 0) {
+      analysis.add('\nSpike Training:');
+      analysis.add('- Completed ${data['spikeCount']} spike training sessions');
+      analysis.add('- Best success rate: ${((data['bestSpikeRate'] as double) * 100).toStringAsFixed(1)}%');
+      analysis.add('- Average success rate: ${((data['avgSpikeRate'] as double) * 100).toStringAsFixed(1)}%');
+      
+      if (data['spikeTrend'] > 0) {
+        analysis.add('- Spike performance is improving (+${((data['spikeTrend'] as double) * 100).toStringAsFixed(1)}%)');
+      } else if (data['spikeTrend'] < 0) {
+        analysis.add('- Spike performance has declined (${((data['spikeTrend'] as double) * 100).toStringAsFixed(1)}%)');
+      } else {
+        analysis.add('- Spike performance has remained consistent');
+      }
     }
+    
+    // Stamina analysis
+    if (data['staminaCount'] > 0) {
+      analysis.add('\nStamina Training:');
+      analysis.add('- Completed ${data['staminaCount']} stamina training sessions');
+      analysis.add('- Best time: ${data['bestStaminaTime']}');
+      
+      if (data['staminaTrend'] > 0) {
+        analysis.add('- Stamina performance is improving (${(data['staminaTrend'] * 100).toStringAsFixed(1)}% faster)');
+      } else if (data['staminaTrend'] < 0) {
+        analysis.add('- Stamina performance has declined (${(-data['staminaTrend'] * 100).toStringAsFixed(1)}% slower)');
+      } else {
+        analysis.add('- Stamina performance has remained consistent');
+      }
+    }
+    
+    // If no training data
+    if (totalTrainings == 0) {
+      analysis = ['No training data available for analysis.'];
+    }
+    
+    return analysis.join('\n');
   }
-  
-  // If no training data
-  if (totalTrainings == 0) {
-    analysis = ['No training data available for analysis.'];
-  }
-  
-  return analysis.join('\n');
-}
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1096,7 +1086,6 @@ String _generateAnalysisText(Map<String, dynamic> data) {
                           if (value != null) {
                             setState(() {
                               _selectedStudentId = value;
-                              _notesController.clear(); // Clear notes when student changes
                             });
                             _loadStudentData(value);
                           }
@@ -1109,27 +1098,6 @@ String _generateAnalysisText(Map<String, dynamic> data) {
                   
                   // Show student data and report preview if a student is selected
                   if (_selectedStudentId != null && !_isLoading) ...[
-                    Text(
-                      'Coach Notes & Recommendations',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 8),
-                    TextField(
-                      controller: _notesController,
-                      maxLines: 6,
-                      decoration: InputDecoration(
-                        hintText: 'Add your notes, feedback, and recommendations for the student...',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    ),
-                    
-                    SizedBox(height: 24),
-                    
                     // Training data summary
                     Text(
                       'Training Data Summary',

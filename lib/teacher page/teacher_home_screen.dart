@@ -5,7 +5,7 @@ import '../Game tool/ScoreboardPage.dart';
 import '../Training Tool/training_page.dart';
 import '../Training Tool/training_type.dart';
 import '../authentication page/splash_screen.dart';
-import '../Generate_report.dart'; // Added import for report generation
+import '../Generate_report.dart';
 import 'calender_coach_screen.dart';
 import 'schedule_date_screen.dart';
 import 'teacher_profile_page.dart';
@@ -20,32 +20,40 @@ class TeacherHomeScreen extends StatefulWidget {
 class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  
-  String _username = 'Coach/Teacher';
+
+  String _username = 'Coach';
   String _fullName = '';
   String _profileImageUrl = '';
   bool _isLoading = true;
+
+  // Dynamic statistics variables
+  int _upcomingSessions = 0;
+  int _totalStudents = 0;
+  String _currentWeek = 'N/A';
+  bool _loadingStats = true;
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
+    _loadStatistics();
   }
 
   Future<void> _loadUserData() async {
     setState(() {
       _isLoading = true;
     });
-    
+
     try {
       User? user = _auth.currentUser;
       if (user != null) {
-        DocumentSnapshot userData = await _firestore.collection('users').doc(user.uid).get();
-        
+        DocumentSnapshot userData =
+            await _firestore.collection('users').doc(user.uid).get();
+
         if (userData.exists) {
           Map<String, dynamic> data = userData.data() as Map<String, dynamic>;
           setState(() {
-            _username = data['username'] ?? 'Coach/Teacher';
+            _username = data['username'] ?? 'Coach';
             _fullName = data['fullName'] ?? '';
             _profileImageUrl = data['profileImageUrl'] ?? '';
           });
@@ -60,17 +68,83 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
     }
   }
 
-  // In TeacherHomeScreen, update the _signOut method:
-Future<void> _signOut(BuildContext context) async {
-  try {
-    await FirebaseAuth.instance.signOut();
-    // Don't manually navigate - AuthWrapper will handle it automatically
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error signing out: $e')),
-    );
+  Future<void> _loadStatistics() async {
+    setState(() {
+      _loadingStats = true;
+    });
+
+    try {
+      final User? user = _auth.currentUser;
+      if (user == null) return;
+
+      // Get upcoming training sessions
+      DateTime now = DateTime.now();
+      DateTime today = DateTime(now.year, now.month, now.day);
+
+      QuerySnapshot upcomingSessionsSnapshot = await _firestore
+          .collection('training_sessions')
+          .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(today))
+          .get();
+
+      // Get total students count
+      QuerySnapshot studentsSnapshot = await _firestore
+          .collection('users')
+          .where('role', isEqualTo: 'student')
+          .get();
+
+      // Get current week from active training course
+      String currentWeek = 'N/A';
+      try {
+        QuerySnapshot courseSnapshot = await _firestore
+            .collection('training_courses')
+            .where('coachId', isEqualTo: user.uid)
+            .where('isActive', isEqualTo: true)
+            .limit(1)
+            .get();
+
+        if (courseSnapshot.docs.isNotEmpty) {
+          DocumentSnapshot doc = courseSnapshot.docs.first;
+          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+
+          DateTime startDate = (data['startDate'] as Timestamp).toDate();
+          DateTime currentDate = DateTime.now();
+          int daysSinceStart = currentDate.difference(startDate).inDays;
+          int weekNumber = (daysSinceStart / 7).floor() + 1;
+
+          currentWeek = 'Week $weekNumber';
+        }
+      } catch (e) {
+        print('Error getting current week: $e');
+        currentWeek = 'No Course';
+      }
+
+      setState(() {
+        _upcomingSessions = upcomingSessionsSnapshot.docs.length;
+        _totalStudents = studentsSnapshot.docs.length;
+        _currentWeek = currentWeek;
+        _loadingStats = false;
+      });
+    } catch (e) {
+      print('Error loading statistics: $e');
+      setState(() {
+        _loadingStats = false;
+      });
+    }
   }
-}
+
+  Future<void> _signOut(BuildContext context) async {
+    try {
+      await FirebaseAuth.instance.signOut();
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => SplashScreen()),
+        (Route<dynamic> route) => false,
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error signing out: $e')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -78,382 +152,516 @@ Future<void> _signOut(BuildContext context) async {
     final String userId = user?.uid ?? '';
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Teacher Home'),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => _signOut(context),
+      // CHANGED: Added blue gradient background container
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF3B82F6).withOpacity(0.1), // CHANGED: Light blue fade at top
+              Colors.white,                        // CHANGED: White at bottom
+            ],
           ),
-        ],
-      ),
-      body: _isLoading
-        ? Center(child: CircularProgressIndicator())
-        : SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Profile section
-                Center(
+        ),
+        child: SafeArea(
+          child: _isLoading
+              ? Center(
+                  child: CircularProgressIndicator(
+                    color: Color(0xFF1E40AF),
+                  ),
+                )
+              : SingleChildScrollView(
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => TeacherProfilePage(
-                                onProfileUpdated: _loadUserData,
+                      // Sport-inspired Header
+                      Container(
+                        padding: EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Color(0xFF1E40AF),
+                              Color(0xFF3B82F6),
+                              Color(0xFF60A5FA)
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.only(
+                            bottomLeft: Radius.circular(32),
+                            bottomRight: Radius.circular(32),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Color(0xFF3B82F6).withOpacity(0.4),
+                              blurRadius: 25,
+                              offset: Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        padding: EdgeInsets.symmetric(
+                                            horizontal: 10, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.2),
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color: Colors.white.withOpacity(0.3),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          'COACH DASHBOARD',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w700,
+                                            letterSpacing: 1.2,
+                                          ),
+                                        ),
+                                      ),
+                                      SizedBox(height: 8),
+                                      Text(
+                                        _fullName.isNotEmpty
+                                            ? _fullName
+                                            : 'Coach $_username',
+                                        style: TextStyle(
+                                          fontSize: 26,
+                                          fontWeight: FontWeight.w800,
+                                          color: Colors.white,
+                                          letterSpacing: -0.5,
+                                        ),
+                                      ),
+                                      SizedBox(height: 4),
+                                      Text(
+                                        'Sepak Takraw Training',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.white.withOpacity(0.8),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Row(
+                                  children: [
+                                    // Profile button with sport styling
+                                    GestureDetector(
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                TeacherProfilePage(
+                                              onProfileUpdated: _loadUserData,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      child: Container(
+                                        height: 50,
+                                        width: 50,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: Colors.white.withOpacity(0.3),
+                                            width: 2,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color:
+                                                  Colors.black.withOpacity(0.15),
+                                              blurRadius: 10,
+                                              offset: Offset(0, 5),
+                                            ),
+                                          ],
+                                        ),
+                                        child: ClipOval(
+                                          child: _profileImageUrl.isNotEmpty
+                                              ? Image.network(_profileImageUrl,
+                                                  fit: BoxFit.cover)
+                                              : Icon(
+                                                  Icons.sports,
+                                                  color: Color(0xFF3B82F6),
+                                                  size: 24,
+                                                ),
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(width: 12),
+                                    // Logout button
+                                    GestureDetector(
+                                      onTap: () => _signOut(context),
+                                      child: Container(
+                                        height: 50,
+                                        width: 50,
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              Color(0xFFEF4444),
+                                              Color(0xFFDC2626)
+                                            ],
+                                          ),
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Color(0xFFEF4444)
+                                                  .withOpacity(0.4),
+                                              blurRadius: 10,
+                                              offset: Offset(0, 5),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Icon(
+                                          Icons.logout,
+                                          color: Colors.white,
+                                          size: 22,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+
+                            SizedBox(height: 20),
+
+                            // Dynamic quick stats with sport styling
+                            Row(
+                              children: [
+                                _buildSportStat(
+                                  _loadingStats
+                                      ? '...'
+                                      : '$_upcomingSessions',
+                                  'Sessions',
+                                  Color(0xFFFF6B35),
+                                ),
+                                SizedBox(width: 16),
+                                _buildSportStat(
+                                  _loadingStats
+                                      ? '...'
+                                      : '$_totalStudents',
+                                  'Athletes',
+                                  Color(0xFF10B981),
+                                ),
+                                SizedBox(width: 16),
+                                _buildSportStat(
+                                  _loadingStats
+                                      ? '...'
+                                      : _currentWeek,
+                                  'Current',
+                                  Color(0xFFF59E0B),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Content with sport elements
+                      Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Consolidated Management Tools Section
+                            _buildSectionTitle('Management Tools'),
+                            SizedBox(height: 16),
+
+                            // Unified card grid for all functions
+                            GridView.count(
+                              crossAxisCount: 2,
+                              shrinkWrap: true,
+                              physics: NeverScrollableScrollPhysics(),
+                              mainAxisSpacing: 16,
+                              crossAxisSpacing: 16,
+                              childAspectRatio: 1.1,
+                              children: [
+                                _buildUnifiedCard(
+                                  'TRAINING',
+                                  Icons.play_circle_filled,
+                                  Color(0xFF10B981),
+                                  () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => TrainingPage(
+                                          userId: userId,
+                                          displayName: _username,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                _buildUnifiedCard(
+                                  'GAME BOARD',
+                                  Icons.scoreboard,
+                                  Color(0xFFF59E0B),
+                                  () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => SepakTakrawApp(),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                _buildUnifiedCard(
+                                  'SCHEDULE',
+                                  Icons.calendar_month,
+                                 Color(0xFF3B82F6),
+                                  () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => ScheduleListScreen(
+                                          userId: userId,
+                                        ),
+                                      ),
+                                    ).then((_) {
+                                      _loadStatistics();
+                                    });
+                                  },
+                                ),
+                                _buildUnifiedCard(
+                                  'NEW SESSION',
+                                  Icons.add_circle,
+                                  Color(0xFF8B5CF6),
+                                  () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => ScheduleDateScreen(
+                                          userId: userId,
+                                        ),
+                                      ),
+                                    ).then((_) {
+                                      _loadStatistics();
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+
+                            SizedBox(height: 24),
+
+                            // Performance Analytics Card
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => GenerateReportPage(
+                                      coachId: userId,
+                                      coachName: _fullName.isNotEmpty
+                                          ? _fullName
+                                          : _username,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                padding: EdgeInsets.all(24),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Color(0xFF6366F1),
+                                      Color(0xFF8B5CF6)
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Color(0xFF6366F1).withOpacity(0.4),
+                                      blurRadius: 20,
+                                      offset: Offset(0, 8),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: EdgeInsets.all(14),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      child: Icon(
+                                        Icons.assessment,
+                                        color: Colors.white,
+                                        size: 26,
+                                      ),
+                                    ),
+                                    SizedBox(width: 18),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Performance Reports',
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                          SizedBox(height: 6),
+                                          Text(
+                                            'Generate athlete progress analysis',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color:
+                                                  Colors.white.withOpacity(0.8),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Icon(
+                                        Icons.arrow_forward,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          );
-                        },
-                        child: Hero(
-                          tag: 'profilePicture',
-                          child: CircleAvatar(
-                            radius: 50,
-                            backgroundColor: Colors.grey.shade200,
-                            backgroundImage: _profileImageUrl.isNotEmpty
-                                ? NetworkImage(_profileImageUrl)
-                                : null,
-                            child: _profileImageUrl.isEmpty
-                                ? Icon(Icons.person, size: 50, color: Colors.grey.shade700)
-                                : null,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Welcome, $_username!',
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        _fullName,
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Tap on your profile picture to edit',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade700,
+
+                            SizedBox(height: 20),
+                          ],
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 32),
-                
-                // Quick Stats Section
-                Card(
-                  elevation: 3,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.analytics, color: Colors.blue),
-                            SizedBox(width: 8),
-                            Text(
-                              'Quick Stats',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Divider(),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            _buildStatItem(context, '12', 'Sessions'),
-                            _buildStatItem(context, '8', 'Players'),
-                            _buildStatItem(context, '3', 'Upcoming'),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                
-                const SizedBox(height: 24),
-                
-                const Text(
-                  'Menu',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                
-                GridView.count(
-                  crossAxisCount: 2,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: 16,
-                  crossAxisSpacing: 16,
-                  children: [
-                    // Gameboard card
-                    _buildFeatureCard(
-                      context,
-                      icon: Icons.sports_handball,
-                      title: 'Gameboard',
-                      color: Colors.blue,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => SepakTakrawApp(),
-                          ),
-                        );
-                      },
-                    ),
-                    // Training card
-                    _buildFeatureCard(
-                      context,
-                      icon: Icons.fitness_center,
-                      title: 'Training',
-                      color: Colors.green,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => TrainingPage(
-                              userId: userId,
-                              displayName: _username,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    // Create Session card
-                    _buildFeatureCard(
-                      context,
-                      icon: Icons.add,
-                      title: 'Make Session',
-                      color: const Color.fromARGB(255, 176, 110, 39),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ScheduleDateScreen(
-                              userId: userId,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    // Schedule List card
-                    _buildFeatureCard(
-                      context,
-                      icon: Icons.calendar_month,
-                      title: 'Schedule List',
-                      color: Colors.purple,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ScheduleListScreen(
-                              userId: userId,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-                
-                // Add the full-width report generation bar
-                SizedBox(height: 20),
-                
-                Card(
-                  elevation: 4,
-                  color: Colors.red.shade50,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: Colors.red.shade300, width: 1.5),
-                  ),
-                  child: InkWell(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => GenerateReportPage(
-                            coachId: userId,
-                            coachName: _fullName.isNotEmpty ? _fullName : _username,
-                          ),
-                        ),
-                      );
-                    },
-                    borderRadius: BorderRadius.circular(12),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 24.0),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Generate Performance Reports',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                    color: Colors.red.shade800,
-                                  ),
-                                ),
-                                SizedBox(height: 4),
-                                Text(
-                                  'Create detailed student progress reports with charts and analysis',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.red.shade700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Icon(
-                            Icons.arrow_forward_ios,
-                            color: Colors.red.shade700,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                
-                SizedBox(height: 24),
-                
-                // Recent Activities Section
-                Card(
-                  elevation: 3,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.history, color: Colors.blue),
-                            SizedBox(width: 8),
-                            Text(
-                              'Recent Activities',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Divider(),
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: CircleAvatar(
-                            backgroundColor: Colors.green.shade100,
-                            child: Icon(Icons.check, color: Colors.green),
-                          ),
-                          title: Text('Training Session Completed'),
-                          subtitle: Text('Defensive Techniques - May 16, 2025'),
-                        ),
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: CircleAvatar(
-                            backgroundColor: Colors.blue.shade100,
-                            child: Icon(Icons.sports, color: Colors.blue),
-                          ),
-                          title: Text('Match Recorded'),
-                          subtitle: Text('Team A vs Team B - May 15, 2025'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
         ),
-    );
-  }
-  
-  Widget _buildStatItem(BuildContext context, String value, String label) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Colors.blue,
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey.shade600,
-          ),
-        ),
-      ],
+      ),
     );
   }
 
-  Widget _buildFeatureCard(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 48,
-                color: color,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-            ],
+  Widget _buildSportStat(String value, String label, Color color) {
+    return Expanded(
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.2),
           ),
+        ),
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+              ),
+            ),
+            SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.white.withOpacity(0.8),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w800,
+        color: Color(0xFF1F2937),
+        letterSpacing: 0.5,
+      ),
+    );
+  }
+
+  Widget _buildUnifiedCard(
+    String title,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: color.withOpacity(0.2),
+            width: 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.15),
+              blurRadius: 15,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [color, color.withOpacity(0.8)],
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(
+                icon,
+                color: Colors.white,
+                size: 32,
+              ),
+            ),
+            SizedBox(height: 16),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1F2937),
+                letterSpacing: 0.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
     );

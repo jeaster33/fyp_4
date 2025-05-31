@@ -21,33 +21,66 @@ class _StudentScheduleListScreenState extends State<StudentScheduleListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Color(0xFFF5F7FA),
       appBar: AppBar(
         title: Text('Training Schedule'),
-        backgroundColor: Colors.blue,
+        backgroundColor: Color(0xFF3B82F6), // CHANGED: Blue theme matching SCHEDULE card
         foregroundColor: Colors.white,
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              'Upcoming Sessions',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+          // Header section matching student home screen style
+          Container(
+            padding: EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [
+                BoxShadow(
+                  color: Color(0xFF3B82F6).withOpacity(0.1), // CHANGED: Blue theme
+                  blurRadius: 15,
+                  offset: Offset(0, 8),
+                ),
+              ],
+            ),
+            margin: EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '🏆 Upcoming Sessions',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1F2937),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Your training schedule and session details',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           ),
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              // Simple query without filters
               stream: _firestore
                   .collection('training_sessions')
                   .orderBy('date', descending: false)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Center(child: CircularProgressIndicator());
+                  return Center(
+                    child: CircularProgressIndicator(
+                      color: Color(0xFF3B82F6), // CHANGED: Blue theme
+                    ),
+                  );
                 }
 
                 if (snapshot.hasError) {
@@ -57,9 +90,7 @@ class _StudentScheduleListScreenState extends State<StudentScheduleListScreen> {
                 }
 
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return Center(
-                    child: Text('No scheduled sessions found'),
-                  );
+                  return _buildEmptyState();
                 }
 
                 // Group sessions by date
@@ -75,10 +106,10 @@ class _StudentScheduleListScreenState extends State<StudentScheduleListScreen> {
                   groupedSessions[date]!.add(doc);
                 }
 
-                // Sort dates
                 final sortedDates = groupedSessions.keys.toList()..sort();
 
                 return ListView.builder(
+                  padding: EdgeInsets.all(16),
                   itemCount: sortedDates.length,
                   itemBuilder: (context, dateIndex) {
                     final date = sortedDates[dateIndex];
@@ -89,14 +120,23 @@ class _StudentScheduleListScreenState extends State<StudentScheduleListScreen> {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Padding(
-                          padding: const EdgeInsets.all(16.0),
+                        // Date header with blue styling
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          margin: EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Color(0xFF3B82F6), Color(0xFF1E40AF)], // CHANGED: Blue gradient
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           child: Text(
                             headerDate,
                             style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blue,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              letterSpacing: 0.5,
                             ),
                           ),
                         ),
@@ -107,49 +147,10 @@ class _StudentScheduleListScreenState extends State<StudentScheduleListScreen> {
                           itemBuilder: (context, sessionIndex) {
                             final session = sessions[sessionIndex].data() as Map<String, dynamic>;
                             final sessionId = sessions[sessionIndex].id;
-                            final title = session['title'] ?? 'Untitled Session';
-                            final description = session['description'] ?? 'No description';
-                            final startTime = session['startTime'] ?? '';
-                            final endTime = session['endTime'] ?? '';
-                            
-                            // Check if this session is today or in the future
-                            final sessionDate = (session['date'] as Timestamp).toDate();
-                            final isUpcoming = sessionDate.isAfter(DateTime.now().subtract(Duration(days: 1)));
-                            
-                            return Card(
-                              margin: EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
-                              // Add a slight color change for upcoming sessions
-                              color: isUpcoming ? Colors.blue.shade50 : null,
-                              child: ListTile(
-                                contentPadding: EdgeInsets.all(16.0),
-                                title: Text(
-                                  title,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    SizedBox(height: 6),
-                                    Text(description),
-                                    SizedBox(height: 8),
-                                    Row(
-                                      children: [
-                                        Icon(Icons.access_time, size: 16),
-                                        SizedBox(width: 4),
-                                        Text('$startTime - $endTime'),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                                // No edit or delete buttons for students
-                                onTap: () => _showSessionDetails(session, sessionId),
-                              ),
-                            );
+                            return _buildSessionCard(session, sessionId);
                           },
                         ),
+                        SizedBox(height: 16),
                       ],
                     );
                   },
@@ -162,107 +163,288 @@ class _StudentScheduleListScreenState extends State<StudentScheduleListScreen> {
     );
   }
 
+  Widget _buildSessionCard(Map<String, dynamic> session, String sessionId) {
+    final title = session['title'] ?? 'Untitled Session';
+    final description = session['description'] ?? 'No description';
+    final startTime = session['startTime'] ?? '';
+    final endTime = session['endTime'] ?? '';
+    
+    final sessionDate = (session['date'] as Timestamp).toDate();
+    final isUpcoming = sessionDate.isAfter(DateTime.now().subtract(Duration(days: 1)));
+    
+    return Container(
+      margin: EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isUpcoming ? Color(0xFF3B82F6).withOpacity(0.3) : Colors.grey.withOpacity(0.2), // CHANGED: Blue theme
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isUpcoming 
+                ? Color(0xFF3B82F6).withOpacity(0.15) // CHANGED: Blue theme
+                : Colors.grey.withOpacity(0.1),
+            blurRadius: 15,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: isUpcoming 
+                        ? [Color(0xFF3B82F6), Color(0xFF1E40AF)] // CHANGED: Blue gradient
+                        : [Colors.grey.shade400, Colors.grey.shade500],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.sports_handball,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1F2937),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      description,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              if (isUpcoming)
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Color(0xFF3B82F6).withOpacity(0.1), // CHANGED: Blue theme
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Upcoming',
+                    style: TextStyle(
+                      color: Color(0xFF3B82F6), // CHANGED: Blue theme
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          SizedBox(height: 16),
+          Row(
+            children: [
+              Icon(
+                Icons.access_time,
+                size: 16,
+                color: Color(0xFF3B82F6), // CHANGED: Blue theme
+              ),
+              SizedBox(width: 8),
+              Text(
+                '$startTime - $endTime',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1F2937),
+                ),
+              ),
+              Spacer(),
+              GestureDetector(
+                onTap: () => _showSessionDetails(session, sessionId),
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Color(0xFF3B82F6).withOpacity(0.1), // CHANGED: Blue theme
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'View Details',
+                        style: TextStyle(
+                          color: Color(0xFF3B82F6), // CHANGED: Blue theme
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      SizedBox(width: 4),
+                      Icon(
+                        Icons.arrow_forward_ios,
+                        size: 12,
+                        color: Color(0xFF3B82F6), // CHANGED: Blue theme
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Color(0xFF3B82F6).withOpacity(0.1), // CHANGED: Blue theme
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.calendar_today,
+              size: 60,
+              color: Color(0xFF3B82F6), // CHANGED: Blue theme
+            ),
+          ),
+          SizedBox(height: 16),
+          Text(
+            'No sessions scheduled',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF1F2937),
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Training sessions will appear here once scheduled',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showSessionDetails(Map<String, dynamic> session, String sessionId) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) {
         return Container(
-          padding: EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              SizedBox(height: 20),
               Text(
                 session['title'] ?? 'Untitled Session',
                 style: TextStyle(
                   fontSize: 22,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF1F2937),
+                ),
+              ),
+              SizedBox(height: 16),
+              _buildDetailRow(
+                Icons.calendar_today,
+                DateFormat('EEEE, MMMM d, yyyy').format(
+                  (session['date'] as Timestamp).toDate(),
                 ),
               ),
               SizedBox(height: 12),
-              Row(
-                children: [
-                  Icon(Icons.calendar_today, color: Colors.blue),
-                  SizedBox(width: 8),
-                  Text(
-                    DateFormat('EEEE, MMMM d, yyyy').format(
-                      (session['date'] as Timestamp).toDate(),
-                    ),
-                    style: TextStyle(fontSize: 16),
-                  ),
-                ],
+              _buildDetailRow(
+                Icons.access_time,
+                '${session['startTime']} - ${session['endTime']}',
               ),
-              SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(Icons.access_time, color: Colors.blue),
-                  SizedBox(width: 8),
-                  Text(
-                    '${session['startTime']} - ${session['endTime']}',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                ],
-              ),
-              SizedBox(height: 16),
+              SizedBox(height: 20),
               Text(
                 'Description:',
                 style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1F2937),
                 ),
               ),
               SizedBox(height: 8),
               Text(
                 session['description'] ?? 'No description provided',
-                style: TextStyle(fontSize: 16),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade600,
+                  height: 1.5,
+                ),
               ),
-              SizedBox(height: 20),
-              // Show coach/creator information if available
-              if (session['createdBy'] != null) ...[
-                Text(
-                  'Created by:',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(height: 8),
-                FutureBuilder<String>(
-                  future: _getCreatorName(session['createdBy']),
-                  builder: (context, snapshot) {
-                    return Text(
-                      snapshot.data ?? 'Coach',
-                      style: TextStyle(fontSize: 16),
-                    );
-                  },
-                ),
-                SizedBox(height: 20),
-              ],
-              // Add to Calendar button
+              SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    // This is a placeholder for calendar integration
-                    // Here you could add functionality to add to device calendar
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Session added to your calendar')),
+                      SnackBar(
+                        content: Text('Session added to your calendar'),
+                        backgroundColor: Color(0xFF3B82F6), // CHANGED: Blue theme
+                      ),
                     );
                     Navigator.pop(context);
                   },
-                  icon: Icon(Icons.calendar_month),
+                  icon: Icon(Icons.calendar_month, size: 18),
                   label: Text('Add to My Calendar'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
+                    backgroundColor: Color(0xFF3B82F6), // CHANGED: Blue theme
                     foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(vertical: 12),
+                    padding: EdgeInsets.symmetric(vertical: 15),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 3,
                   ),
                 ),
               ),
+              SizedBox(height: 20),
             ],
           ),
         );
@@ -270,10 +452,35 @@ class _StudentScheduleListScreenState extends State<StudentScheduleListScreen> {
     );
   }
 
-  // Helper method to get creator name - in a real app this would fetch from Firestore
+  Widget _buildDetailRow(IconData icon, String text) {
+    return Row(
+      children: [
+        Container(
+          padding: EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Color(0xFF3B82F6).withOpacity(0.1), // CHANGED: Blue theme
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            icon,
+            color: Color(0xFF3B82F6), // CHANGED: Blue theme
+            size: 16,
+          ),
+        ),
+        SizedBox(width: 12),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF1F2937),
+          ),
+        ),
+      ],
+    );
+  }
+
   Future<String> _getCreatorName(String userId) async {
-    // You could implement a real lookup to get the user's name
-    // For now, just return a placeholder
     return 'Coach';
   }
 }

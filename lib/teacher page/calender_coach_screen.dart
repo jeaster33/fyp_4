@@ -555,56 +555,56 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
     }
   }
   Future<void> _showAttendanceDialog(
-    BuildContext context,
-    String sessionId,
-    String sessionTitle,
-    String sessionDate,
-    List<QueryDocumentSnapshot> students,
-    Map<String, bool> existingAttendance,
-    Map<String, dynamic> session, // Add session parameter
-  ) async {
-    // Create a map to track attendance
-    Map<String, bool> attendance = Map.from(existingAttendance);
-    
-    // Initialize all students as present if they don't have a record
-    for (var student in students) {
-      String studentId = student.id;
-      if (!attendance.containsKey(studentId)) {
-        attendance[studentId] = false; // Default to absent
-      }
+  BuildContext context,
+  String sessionId,
+  String sessionTitle,
+  String sessionDate,
+  List<QueryDocumentSnapshot> students,
+  Map<String, bool> existingAttendance,
+  Map<String, dynamic> session,
+) async {
+  Map<String, bool> attendance = Map.from(existingAttendance);
+  
+  for (var student in students) {
+    String studentId = student.id;
+    if (!attendance.containsKey(studentId)) {
+      attendance[studentId] = false;
     }
+  }
 
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Take Attendance'),
-                  SizedBox(height: 4),
-                  Text(
-                    '$sessionTitle - $sessionDate',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.normal,
-                      color: Colors.grey[700],
-                    ),
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Take Attendance'),
+                SizedBox(height: 4),
+                Text(
+                  '$sessionTitle - $sessionDate',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.normal,
+                    color: Colors.grey[700],
                   ),
-                ],
-              ),
-              content: Container(
-                width: double.maxFinite,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Mark all present/absent buttons
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        ElevatedButton.icon(
+                ),
+              ],
+            ),
+            content: Container(
+              width: double.maxFinite,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // FIXED: Responsive button layout
+                  Column( // CHANGED: Column instead of Row
+                    children: [
+                      // All Present button
+                      Container(
+                        width: double.infinity, // CHANGED: Full width
+                        child: ElevatedButton.icon(
                           onPressed: () {
                             setState(() {
                               for (var student in students) {
@@ -612,14 +612,29 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                               }
                             });
                           },
-                          icon: Icon(Icons.group),
-                          label: Text('All Present'),
+                          icon: Icon(Icons.group, size: 18), // CHANGED: Smaller icon
+                          label: Text(
+                            'Mark All Present',
+                            style: TextStyle(fontSize: 14), // CHANGED: Smaller text
+                          ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green,
                             foregroundColor: Colors.white,
+                            padding: EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 16,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
                         ),
-                        ElevatedButton.icon(
+                      ),
+                      SizedBox(height: 8), // CHANGED: Space between buttons
+                      // All Absent button
+                      Container(
+                        width: double.infinity, // CHANGED: Full width
+                        child: ElevatedButton.icon(
                           onPressed: () {
                             setState(() {
                               for (var student in students) {
@@ -627,33 +642,75 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                               }
                             });
                           },
-                          icon: Icon(Icons.group_off),
-                          label: Text('All Absent'),
+                          icon: Icon(Icons.group_off, size: 18), // CHANGED: Smaller icon
+                          label: Text(
+                            'Mark All Absent',
+                            style: TextStyle(fontSize: 14), // CHANGED: Smaller text
+                          ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red,
                             foregroundColor: Colors.white,
+                            padding: EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 16,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
                         ),
-                      ],
+                      ),
+                    ],
+                  ),
+                  
+                  SizedBox(height: 16), // CHANGED: More space
+                  Divider(thickness: 1), // CHANGED: Thicker divider
+                  SizedBox(height: 16),
+                  
+                  // Student list with better styling
+                  Container(
+                    height: 300,
+                    decoration: BoxDecoration( // ADDED: Container styling
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    SizedBox(height: 10),
-                    Divider(),
-                    SizedBox(height: 10),
-                    // Student list
-                    Container(
-                      height: 300,
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: students.length,
-                        itemBuilder: (context, index) {
-                          var student = students[index].data() as Map<String, dynamic>;
-                          String studentId = students[index].id;
-                          String studentName = student['fullName'] ?? 'Unknown Student';
-                          String studentUsername = student['username'] ?? '';
-                          
-                          return CheckboxListTile(
-                            title: Text(studentName),
-                            subtitle: Text(studentUsername),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: students.length,
+                      itemBuilder: (context, index) {
+                        var student = students[index].data() as Map<String, dynamic>;
+                        String studentId = students[index].id;
+                        String studentName = student['fullName'] ?? 'Unknown Student';
+                        String studentUsername = student['username'] ?? '';
+                        
+                        return Container( // ADDED: Individual item styling
+                          decoration: BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(
+                                color: Colors.grey.shade200,
+                                width: 0.5,
+                              ),
+                            ),
+                          ),
+                          child: CheckboxListTile(
+                            contentPadding: EdgeInsets.symmetric( // CHANGED: Better padding
+                              horizontal: 12,
+                              vertical: 4,
+                            ),
+                            title: Text(
+                              studentName,
+                              style: TextStyle(
+                                fontSize: 14, // CHANGED: Smaller font
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            subtitle: Text(
+                              studentUsername,
+                              style: TextStyle(
+                                fontSize: 12, // CHANGED: Smaller subtitle
+                                color: Colors.grey[600],
+                              ),
+                            ),
                             value: attendance[studentId] ?? false,
                             onChanged: (bool? value) {
                               setState(() {
@@ -662,72 +719,97 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                             },
                             activeColor: Colors.blue,
                             checkColor: Colors.white,
-                          );
-                        },
-                      ),
+                            controlAffinity: ListTileControlAffinity.trailing, // ADDED: Checkbox on right
+                          ),
+                        );
+                      },
                     ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    try {
-                      // Update the session with attendance data
-                      await _firestore.collection('training_sessions').doc(sessionId).update({
-                        'attendance': attendance,
-                        'attendanceRecorded': true,
-                        'lastAttendanceUpdate': FieldValue.serverTimestamp(),
-                      });
-
-                      // Update individual attendance records for each student
-                      for (var student in students) {
-                        String studentId = student.id;
-                        bool isPresent = attendance[studentId] ?? false;
-                        
-                        // Create attendance record ID using session and student IDs
-                        String attendanceRecordId = '$sessionId-$studentId';
-                        
-                        // FIX: Use merge: true parameter instead of SetOptions
-                        await _firestore.collection('attendance_records').doc(attendanceRecordId).set({
-                          'sessionId': sessionId,
-                          'sessionTitle': sessionTitle,
-                          'sessionDate': session['date'], // Keep as Timestamp
-                          'startTime': session['startTime'],
-                          'endTime': session['endTime'],
-                          'studentId': studentId,
-                          'present': isPresent,
-                          'recordedBy': widget.userId,
-                          'recordedAt': FieldValue.serverTimestamp(),
-                        }, SetOptions(merge: true)); // FIXED: Using SetOptions for merge
-                      }
-                      
-                      Navigator.of(context).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Attendance recorded successfully')),
-                      );
-                    } catch (e) {
-                      Navigator.of(context).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error recording attendance: $e')),
-                      );
-                    }
-                  },
-                  child: Text('Save Attendance'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
                   ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
+                ],
+              ),
+            ),
+            actions: [
+              // CHANGED: Better action button layout
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.grey[600],
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: Text('Cancel'),
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    flex: 2, // CHANGED: Make save button larger
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        try {
+                          // Update the session with attendance data
+                          await _firestore.collection('training_sessions').doc(sessionId).update({
+                            'attendance': attendance,
+                            'attendanceRecorded': true,
+                            'lastAttendanceUpdate': FieldValue.serverTimestamp(),
+                          });
+
+                          // Update individual attendance records for each student
+                          for (var student in students) {
+                            String studentId = student.id;
+                            bool isPresent = attendance[studentId] ?? false;
+                            
+                            String attendanceRecordId = '$sessionId-$studentId';
+                            
+                            await _firestore.collection('attendance_records').doc(attendanceRecordId).set({
+                              'sessionId': sessionId,
+                              'sessionTitle': sessionTitle,
+                              'sessionDate': session['date'],
+                              'startTime': session['startTime'],
+                              'endTime': session['endTime'],
+                              'studentId': studentId,
+                              'present': isPresent,
+                              'recordedBy': widget.userId,
+                              'recordedAt': FieldValue.serverTimestamp(),
+                            }, SetOptions(merge: true));
+                          }
+                          
+                          Navigator.of(context).pop();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Attendance recorded successfully'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        } catch (e) {
+                          Navigator.of(context).pop();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error recording attendance: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text('Save Attendance'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
   }

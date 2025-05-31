@@ -9,7 +9,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 
 class TeacherProfilePage extends StatefulWidget {
   final Function? onProfileUpdated;
-  
+
   const TeacherProfilePage({
     Key? key,
     this.onProfileUpdated,
@@ -23,10 +23,10 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
-  
+
   bool _isLoading = true;
   bool _isEditingProfile = false;
-  
+
   // User data
   String _fullName = '';
   String _email = '';
@@ -38,33 +38,36 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
   String _profileImageUrl = '';
   String _role = 'teacher';
   String _specialization = '';
-  
+
   // Controllers for editing
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _phoneNumberController = TextEditingController();
-  final TextEditingController _secondaryEmailController = TextEditingController();
-  final TextEditingController _specializationController = TextEditingController();
-  
+  final TextEditingController _secondaryEmailController =
+      TextEditingController();
+  final TextEditingController _specializationController =
+      TextEditingController();
+
   @override
   void initState() {
     super.initState();
     _loadUserData();
   }
-  
+
   Future<void> _loadUserData() async {
     setState(() {
       _isLoading = true;
     });
-    
+
     try {
       User? user = _auth.currentUser;
       if (user != null) {
         // Get user data from Firestore
-        DocumentSnapshot userData = await _firestore.collection('users').doc(user.uid).get();
-        
+        DocumentSnapshot userData =
+            await _firestore.collection('users').doc(user.uid).get();
+
         if (userData.exists) {
           Map<String, dynamic> data = userData.data() as Map<String, dynamic>;
-          
+
           // Set state with user data
           setState(() {
             _fullName = data['fullName'] ?? '';
@@ -76,12 +79,12 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
             _profileImageUrl = data['profileImageUrl'] ?? '';
             _role = data['role'] ?? 'teacher';
             _specialization = data['specialization'] ?? 'Sepak Takraw Coach';
-            
+
             // Convert Firestore timestamp to DateTime
             if (data['dateOfBirth'] != null) {
               _dateOfBirth = (data['dateOfBirth'] as Timestamp).toDate();
             }
-            
+
             // Initialize controllers
             _fullNameController.text = _fullName;
             _phoneNumberController.text = _phoneNumber;
@@ -101,7 +104,7 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
       });
     }
   }
-  
+
   // FIXED PICK IMAGE METHOD
   Future<void> _pickImage() async {
     try {
@@ -137,60 +140,63 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
       print('Error showing image picker options: $e');
     }
   }
-  
+
   // FIXED IMAGE UPLOAD METHOD
 // Change this in your TeacherProfilePage
-Future<void> _getImage(ImageSource source) async {
-  try {
-    final XFile? image = await ImagePicker().pickImage(source: source);
-    if (image == null) return;
-    
-    setState(() => _isLoading = true);
-    
-    // Updated path to match your current rules
-    final ref = FirebaseStorage.instance.ref()
-        .child('users')                          // Changed
-        .child(_auth.currentUser!.uid)           // Changed
-        .child('profile_picture.jpg');           // Changed
-    
-    await ref.putFile(File(image.path));
-    final url = await ref.getDownloadURL();
-    
-    await _firestore.collection('users')
-        .doc(_auth.currentUser!.uid)
-        .update({'profileImageUrl': url});
-    
-    setState(() {
-      _profileImageUrl = url;
-      _isLoading = false;
-    });
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Profile updated successfully')),
-    );
-    
-  } catch (e) {
-    setState(() => _isLoading = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error: $e')),
-    );
+  Future<void> _getImage(ImageSource source) async {
+    try {
+      final XFile? image = await ImagePicker().pickImage(source: source);
+      if (image == null) return;
+
+      setState(() => _isLoading = true);
+
+      // Updated path to match your current rules
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('users') // Changed
+          .child(_auth.currentUser!.uid) // Changed
+          .child('profile_picture.jpg'); // Changed
+
+      await ref.putFile(File(image.path));
+      final url = await ref.getDownloadURL();
+
+      await _firestore
+          .collection('users')
+          .doc(_auth.currentUser!.uid)
+          .update({'profileImageUrl': url});
+
+      setState(() {
+        _profileImageUrl = url;
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Profile updated successfully')),
+      );
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
   }
-}
+
   Future<void> _updateProfile() async {
-    if (_fullNameController.text.isEmpty || _phoneNumberController.text.isEmpty) {
+    if (_fullNameController.text.isEmpty ||
+        _phoneNumberController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Full name and phone number are required')),
       );
       return;
     }
-    
+
     setState(() {
       _isLoading = true;
     });
-    
+
     try {
       String uid = _auth.currentUser?.uid ?? '';
-      
+
       // Update user profile
       await _firestore.collection('users').doc(uid).update({
         'fullName': _fullNameController.text,
@@ -198,7 +204,7 @@ Future<void> _getImage(ImageSource source) async {
         'secondaryEmail': _secondaryEmailController.text,
         'specialization': _specializationController.text,
       });
-      
+
       // Update local state
       setState(() {
         _fullName = _fullNameController.text;
@@ -207,11 +213,11 @@ Future<void> _getImage(ImageSource source) async {
         _specialization = _specializationController.text;
         _isEditingProfile = false;
       });
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Profile updated successfully')),
       );
-      
+
       // Notify parent widget if needed
       if (widget.onProfileUpdated != null) {
         widget.onProfileUpdated!();
@@ -227,7 +233,7 @@ Future<void> _getImage(ImageSource source) async {
       });
     }
   }
-  
+
   @override
   void dispose() {
     _fullNameController.dispose();
@@ -277,7 +283,11 @@ Future<void> _getImage(ImageSource source) async {
                                 ? NetworkImage(_profileImageUrl)
                                 : null,
                             child: _profileImageUrl.isEmpty
-                                ? Icon(Icons.person, size: 60, color: Colors.grey.shade700)
+                                ? Icon(
+                                    Icons.sports,
+                                    color: Color(0xFF3B82F6),
+                                    size: 60,
+                                  )
                                 : null,
                           ),
                         ),
@@ -309,9 +319,9 @@ Future<void> _getImage(ImageSource source) async {
                       ],
                     ),
                   ),
-                  
+
                   SizedBox(height: 24),
-                  
+
                   // Profile information
                   Card(
                     elevation: 4,
@@ -333,38 +343,49 @@ Future<void> _getImage(ImageSource source) async {
                           ),
                           Divider(),
                           _isEditingProfile
-                              ? _buildEditableField('Full Name', _fullNameController)
+                              ? _buildEditableField(
+                                  'Full Name', _fullNameController)
                               : _buildProfileField('Full Name', _fullName),
                           _buildProfileField('Username', _username),
                           _buildProfileField('Email', _email),
                           _isEditingProfile
-                              ? _buildEditableField('Specialization', _specializationController)
-                              : _buildProfileField('Specialization', _specialization),
+                              ? _buildEditableField(
+                                  'Specialization', _specializationController)
+                              : _buildProfileField(
+                                  'Specialization', _specialization),
                           _isEditingProfile
-                              ? _buildEditableField('Phone Number', _phoneNumberController)
-                              : _buildProfileField('Phone Number', _phoneNumber),
+                              ? _buildEditableField(
+                                  'Phone Number', _phoneNumberController)
+                              : _buildProfileField(
+                                  'Phone Number', _phoneNumber),
                           _buildProfileField('IC Number', _icNumber),
                           _buildProfileField(
-                            'Date of Birth', 
-                            _dateOfBirth != null 
-                              ? DateFormat('dd MMMM yyyy').format(_dateOfBirth!)
-                              : 'Not specified'
-                          ),
+                              'Date of Birth',
+                              _dateOfBirth != null
+                                  ? DateFormat('dd MMMM yyyy')
+                                      .format(_dateOfBirth!)
+                                  : 'Not specified'),
                           _isEditingProfile
-                              ? _buildEditableField('Secondary Email', _secondaryEmailController, isOptional: true)
+                              ? _buildEditableField(
+                                  'Secondary Email', _secondaryEmailController,
+                                  isOptional: true)
                               : _secondaryEmail.isNotEmpty
-                                ? _buildProfileField('Secondary Email', _secondaryEmail)
-                                : Container(),
-                          _buildProfileField('Role', _role.charAt(0).toUpperCase() + _role.substring(1)),
+                                  ? _buildProfileField(
+                                      'Secondary Email', _secondaryEmail)
+                                  : Container(),
+                          _buildProfileField(
+                              'Role',
+                              _role.charAt(0).toUpperCase() +
+                                  _role.substring(1)),
                         ],
                       ),
                     ),
                   ),
-                  
+
                   SizedBox(height: 24),
-                  
+
                   // Coach Statistics Card
-                  if (!_isEditingProfile) 
+                  if (!_isEditingProfile)
                     Card(
                       elevation: 4,
                       shape: RoundedRectangleBorder(
@@ -404,9 +425,9 @@ Future<void> _getImage(ImageSource source) async {
                         ),
                       ),
                     ),
-                  
+
                   SizedBox(height: 24),
-                  
+
                   // Save/Cancel buttons when editing
                   if (_isEditingProfile)
                     Row(
@@ -424,7 +445,8 @@ Future<void> _getImage(ImageSource source) async {
                             });
                           },
                           style: OutlinedButton.styleFrom(
-                            padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 32, vertical: 12),
                           ),
                           child: Text('Cancel'),
                         ),
@@ -433,7 +455,8 @@ Future<void> _getImage(ImageSource source) async {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blue,
                             foregroundColor: Colors.white,
-                            padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 32, vertical: 12),
                           ),
                           child: Text('Save Changes'),
                         ),
@@ -444,7 +467,7 @@ Future<void> _getImage(ImageSource source) async {
             ),
     );
   }
-  
+
   Widget _buildProfileField(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -470,8 +493,9 @@ Future<void> _getImage(ImageSource source) async {
       ),
     );
   }
-  
-  Widget _buildEditableField(String label, TextEditingController controller, {bool isOptional = false}) {
+
+  Widget _buildEditableField(String label, TextEditingController controller,
+      {bool isOptional = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: TextField(
@@ -485,7 +509,7 @@ Future<void> _getImage(ImageSource source) async {
       ),
     );
   }
-  
+
   Widget _buildStatItem(String value, String label) {
     return Column(
       children: [

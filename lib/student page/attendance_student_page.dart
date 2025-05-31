@@ -37,7 +37,6 @@ class _AttendanceStudentPageState extends State<AttendanceStudentPage> {
     try {
       final String userId = _auth.currentUser!.uid;
       
-      // Query all attendance records for this student
       QuerySnapshot recordsSnapshot = await _firestore
           .collection('attendance_records')
           .where('studentId', isEqualTo: userId)
@@ -46,14 +45,11 @@ class _AttendanceStudentPageState extends State<AttendanceStudentPage> {
       print('Retrieved ${recordsSnapshot.docs.length} attendance records');
       
       List<Map<String, dynamic>> records = [];
-      
-      // Process records and calculate statistics
       int present = 0;
       
       for (var doc in recordsSnapshot.docs) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
         
-        // Convert date to DateTime
         DateTime sessionDate;
         try {
           sessionDate = (data['sessionDate'] as Timestamp).toDate();
@@ -61,7 +57,6 @@ class _AttendanceStudentPageState extends State<AttendanceStudentPage> {
           sessionDate = DateTime.now();
         }
         
-        // Track present/absent counts
         if (data['present'] == true) {
           present++;
         }
@@ -78,10 +73,8 @@ class _AttendanceStudentPageState extends State<AttendanceStudentPage> {
         });
       }
       
-      // Sort by date (newest first)
       records.sort((a, b) => b['sessionDate'].compareTo(a['sessionDate']));
       
-      // Calculate statistics
       _totalSessions = records.length;
       _presentCount = present;
       _absentCount = _totalSessions - _presentCount;
@@ -103,8 +96,11 @@ class _AttendanceStudentPageState extends State<AttendanceStudentPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Color(0xFFF5F7FA),
       appBar: AppBar(
         title: Text('My Attendance'),
+        backgroundColor: Color(0xFF8B5CF6), // CHANGED: Purple theme matching ATTENDANCE card
+        foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: Icon(Icons.refresh),
@@ -114,7 +110,11 @@ class _AttendanceStudentPageState extends State<AttendanceStudentPage> {
         ],
       ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator())
+          ? Center(
+              child: CircularProgressIndicator(
+                color: Color(0xFF8B5CF6), // CHANGED: Purple theme
+              ),
+            )
           : _buildContent(),
     );
   }
@@ -133,17 +133,20 @@ class _AttendanceStudentPageState extends State<AttendanceStudentPage> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Text(
-              'Attendance History',
+              '🏆 Attendance History',
               style: TextStyle(
                 fontSize: 20,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1F2937),
+                letterSpacing: 0.5,
               ),
             ),
           ),
-          SizedBox(height: 8),
+          SizedBox(height: 16),
           ListView.builder(
             shrinkWrap: true,
             physics: NeverScrollableScrollPhysics(),
+            padding: EdgeInsets.symmetric(horizontal: 16),
             itemCount: _attendanceRecords.length,
             itemBuilder: (context, index) {
               return _buildAttendanceCard(_attendanceRecords[index]);
@@ -155,83 +158,107 @@ class _AttendanceStudentPageState extends State<AttendanceStudentPage> {
   }
   
   Widget _buildStatisticsCard() {
-    return Card(
+    return Container(
       margin: EdgeInsets.all(16),
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Attendance Summary',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+      padding: EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0xFF8B5CF6).withOpacity(0.15), // CHANGED: Purple theme
+            blurRadius: 15,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Attendance Summary',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF1F2937),
+              letterSpacing: 0.5,
+            ),
+          ),
+          SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildStatItem(
+                'Total Sessions',
+                _totalSessions.toString(),
+                Icons.calendar_month,
+                Color(0xFF3B82F6),
               ),
-            ),
-            SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildStatItem(
-                  'Total Sessions',
-                  _totalSessions.toString(),
-                  Icons.calendar_month,
-                  Colors.blue,
-                ),
-                _buildStatItem(
-                  'Present',
-                  _presentCount.toString(),
-                  Icons.check_circle,
-                  Colors.green,
-                ),
-                _buildStatItem(
-                  'Absent',
-                  _absentCount.toString(),
-                  Icons.cancel,
-                  Colors.red,
-                ),
-              ],
-            ),
-            SizedBox(height: 16),
-            // Attendance rate progress bar
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Attendance Rate',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w500,
-                      ),
+              _buildStatItem(
+                'Present',
+                _presentCount.toString(),
+                Icons.check_circle,
+                Color(0xFF10B981),
+              ),
+              _buildStatItem(
+                'Absent',
+                _absentCount.toString(),
+                Icons.cancel,
+                Color(0xFFEF4444),
+              ),
+            ],
+          ),
+          SizedBox(height: 24),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Attendance Rate',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1F2937),
                     ),
-                    Text(
-                      '${_attendanceRate.toStringAsFixed(1)}%',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: _getAttendanceColor(_attendanceRate),
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 8),
-                LinearProgressIndicator(
-                  value: _attendanceRate / 100,
-                  backgroundColor: Colors.grey.shade200,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    _getAttendanceColor(_attendanceRate),
                   ),
-                  minHeight: 10,
-                  borderRadius: BorderRadius.circular(10),
+                  Text(
+                    '${_attendanceRate.toStringAsFixed(1)}%',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: _getAttendanceColor(_attendanceRate),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 12),
+              Container(
+                height: 12,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(6),
+                  color: Colors.grey.shade200,
                 ),
-              ],
-            ),
-          ],
-        ),
+                child: FractionallySizedBox(
+                  alignment: Alignment.centerLeft,
+                  widthFactor: _attendanceRate / 100,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(6),
+                      gradient: LinearGradient(
+                        colors: [
+                          _getAttendanceColor(_attendanceRate),
+                          _getAttendanceColor(_attendanceRate).withOpacity(0.8),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -240,63 +267,119 @@ class _AttendanceStudentPageState extends State<AttendanceStudentPage> {
     String formattedDate = DateFormat('EEEE, MMMM d, yyyy').format(record['sessionDate']);
     bool isPresent = record['present'];
     
-    return Card(
-      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: ListTile(
-        contentPadding: EdgeInsets.all(16),
-        leading: CircleAvatar(
-          backgroundColor: isPresent ? Colors.green.withOpacity(0.2) : Colors.red.withOpacity(0.2),
-          child: Icon(
-            isPresent ? Icons.check : Icons.close,
-            color: isPresent ? Colors.green : Colors.red,
-          ),
+    return Container(
+      margin: EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isPresent 
+              ? Color(0xFF8B5CF6).withOpacity(0.2) // CHANGED: Purple theme for present
+              : Color(0xFFEF4444).withOpacity(0.2),
+          width: 2,
         ),
-        title: Text(
-          record['sessionTitle'],
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
+        boxShadow: [
+          BoxShadow(
+            color: isPresent 
+                ? Color(0xFF8B5CF6).withOpacity(0.1) // CHANGED: Purple theme for present
+                : Color(0xFFEF4444).withOpacity(0.1),
+            blurRadius: 15,
+            offset: Offset(0, 8),
           ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(height: 6),
-            Row(
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isPresent 
+                    ? [Color(0xFF8B5CF6), Color(0xFF7C3AED)] // CHANGED: Purple gradient for present
+                    : [Color(0xFFEF4444), Color(0xFFDC2626)],
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              isPresent ? Icons.check : Icons.close,
+              color: Colors.white,
+              size: 24,
+            ),
+          ),
+          SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.calendar_today, size: 14, color: Colors.grey.shade600),
-                SizedBox(width: 4),
-                Text(formattedDate),
+                Text(
+                  record['sessionTitle'],
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1F2937),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_today,
+                      size: 14,
+                      color: Colors.grey.shade600,
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      formattedDate,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.access_time,
+                      size: 14,
+                      color: Colors.grey.shade600,
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      '${record['startTime']} - ${record['endTime']}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
-            SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(Icons.access_time, size: 14, color: Colors.grey.shade600),
-                SizedBox(width: 4),
-                Text('${record['startTime']} - ${record['endTime']}'),
-              ],
+          ),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: isPresent 
+                  ? Color(0xFF8B5CF6).withOpacity(0.1) // CHANGED: Purple theme for present
+                  : Color(0xFFEF4444).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
             ),
-          ],
-        ),
-        trailing: Container(
-          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: isPresent ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: isPresent ? Colors.green.withOpacity(0.5) : Colors.red.withOpacity(0.5),
+            child: Text(
+              isPresent ? 'Present' : 'Absent',
+              style: TextStyle(
+                color: isPresent ? Color(0xFF8B5CF6) : Color(0xFFEF4444), // CHANGED: Purple text for present
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
-          child: Text(
-            isPresent ? 'Present' : 'Absent',
-            style: TextStyle(
-              color: isPresent ? Colors.green : Colors.red,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
+        ],
       ),
     );
   }
@@ -306,18 +389,25 @@ class _AttendanceStudentPageState extends State<AttendanceStudentPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.calendar_today,
-            size: 80,
-            color: Colors.grey.shade400,
+          Container(
+            padding: EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Color(0xFF8B5CF6).withOpacity(0.1), // CHANGED: Purple theme
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.calendar_today,
+              size: 60,
+              color: Color(0xFF8B5CF6), // CHANGED: Purple theme
+            ),
           ),
           SizedBox(height: 16),
           Text(
             'No attendance records found',
             style: TextStyle(
               fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade700,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF1F2937),
             ),
           ),
           SizedBox(height: 8),
@@ -340,17 +430,20 @@ class _AttendanceStudentPageState extends State<AttendanceStudentPage> {
         Container(
           padding: EdgeInsets.all(12),
           decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: color.withOpacity(0.1),
+            gradient: LinearGradient(
+              colors: [color, color.withOpacity(0.8)],
+            ),
+            borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: color, size: 24),
+          child: Icon(icon, color: Colors.white, size: 24),
         ),
-        SizedBox(height: 8),
+        SizedBox(height: 12),
         Text(
           value,
           style: TextStyle(
             fontSize: 18,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF1F2937),
           ),
         ),
         SizedBox(height: 4),
@@ -358,7 +451,8 @@ class _AttendanceStudentPageState extends State<AttendanceStudentPage> {
           label,
           style: TextStyle(
             fontSize: 12,
-            color: Colors.grey.shade700,
+            color: Colors.grey.shade600,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ],
@@ -366,10 +460,10 @@ class _AttendanceStudentPageState extends State<AttendanceStudentPage> {
   }
   
   Color _getAttendanceColor(double rate) {
-    if (rate >= 90) return Colors.green;
-    if (rate >= 80) return Colors.lightGreen;
-    if (rate >= 70) return Colors.amber;
-    if (rate >= 60) return Colors.orange;
-    return Colors.red;
+    if (rate >= 90) return Color(0xFF8B5CF6); // CHANGED: Use purple for excellent attendance
+    if (rate >= 80) return Color(0xFF7C3AED); // CHANGED: Use darker purple for good attendance
+    if (rate >= 70) return Color(0xFFF59E0B);
+    if (rate >= 60) return Color(0xFFEF4444);
+    return Color(0xFFDC2626);
   }
 }

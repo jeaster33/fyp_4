@@ -36,9 +36,7 @@ class _BalanceDrillPageState extends State<BalanceDrillPage> {
   bool _isLoading = false;
   
   TextEditingController _notesController = TextEditingController();
-  int _balanceScore = 7; // Default value on a scale of 1-10
-  int _selectedAttempt = 1;
-  final List<int> _attempts = [1, 2, 3];
+  int _jugglingCount = 0; // Number of successful ball juggles
   
   // Week selection variables
   int _selectedWeek = 1;
@@ -68,7 +66,6 @@ class _BalanceDrillPageState extends State<BalanceDrillPage> {
     });
 
     try {
-      // Use a simpler query without ordering to avoid index requirements
       QuerySnapshot recordsSnapshot = await _firestore
           .collection('balance_records')
           .where('studentId', isEqualTo: widget.studentId)
@@ -79,24 +76,22 @@ class _BalanceDrillPageState extends State<BalanceDrillPage> {
       for (var doc in recordsSnapshot.docs) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
         
-        // Check if this record belongs to the current course (client-side filtering)
+        // Check if this record belongs to the current course
         if (widget.courseData != null && 
             data['courseId'] != widget.courseData!['id']) {
-          continue; // Skip records not from this course
+          continue;
         }
         
-        // Convert Timestamp to DateTime safely
         DateTime recordDate;
         try {
           recordDate = (data['timestamp'] as Timestamp).toDate();
         } catch (e) {
-          recordDate = DateTime.now(); // Fallback
+          recordDate = DateTime.now();
         }
         
         records.add({
           'id': doc.id,
-          'attempt': data['attempt'] ?? 1,
-          'balanceScore': data['balanceScore'] ?? 5,
+          'jugglingCount': data['jugglingCount'] ?? 0,
           'timestamp': data['timestamp'],
           'notes': data['notes'] ?? '',
           'weekTimestamp': data['weekTimestamp'] ?? 'Not specified',
@@ -104,11 +99,11 @@ class _BalanceDrillPageState extends State<BalanceDrillPage> {
         });
       }
 
-      // Sort the records client-side instead of using orderBy
+      // Sort records by timestamp (newest first)
       records.sort((a, b) {
         Timestamp aStamp = a['timestamp'] as Timestamp;
         Timestamp bStamp = b['timestamp'] as Timestamp;
-        return bStamp.compareTo(aStamp); // Descending order (newest first)
+        return bStamp.compareTo(aStamp);
       });
       
       // Limit to 10 records
@@ -143,15 +138,15 @@ class _BalanceDrillPageState extends State<BalanceDrillPage> {
     try {
       String weekTimestamp = _getSelectedWeekTimestamp();
       
-      // Save the record to Firestore with course data
+      // Save the record to Firestore
       await _firestore.collection('balance_records').add({
         'studentId': widget.studentId,
         'studentName': widget.studentName,
         'coachId': widget.coachId,
         'coachName': widget.coachName,
         'drillName': widget.drillName,
-        'attempt': _selectedAttempt,
-        'balanceScore': _balanceScore,
+        'jugglingCount': _jugglingCount, // Store the actual juggling count
+        'balanceScore': _jugglingCount, // For compatibility, use same value
         'notes': _notesController.text,
         'timestamp': FieldValue.serverTimestamp(),
         'weekTimestamp': weekTimestamp,
@@ -162,13 +157,16 @@ class _BalanceDrillPageState extends State<BalanceDrillPage> {
 
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Record saved successfully for $weekTimestamp')),
+        SnackBar(
+          content: Text('Record saved: $_jugglingCount juggles for $weekTimestamp'),
+          backgroundColor: Colors.green,
+        ),
       );
 
       // Reset the form
       _notesController.clear();
       setState(() {
-        _balanceScore = 7;
+        _jugglingCount = 0;
       });
 
       // Reload previous records
@@ -283,7 +281,7 @@ class _BalanceDrillPageState extends State<BalanceDrillPage> {
                                         ),
                                         SizedBox(height: 4),
                                         Text(
-                                          'Drill: ${widget.drillName}',
+                                          'Drill: Ball Juggling Training',
                                           style: TextStyle(
                                             fontSize: 14,
                                             fontWeight: FontWeight.w500,
@@ -382,80 +380,11 @@ class _BalanceDrillPageState extends State<BalanceDrillPage> {
                         ),
                       ),
                       
-                      SizedBox(height: 24),
-                      
-                      // Attempt Selection Card
-                      Card(
-                        elevation: 3,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(Icons.sports_volleyball, color: widget.drillColor),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'Balance Drill Details',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              SizedBox(height: 16),
-                              // Attempt selection
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Attempt:',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  SizedBox(height: 8),
-                                  DropdownButtonFormField<int>(
-                                    value: _selectedAttempt,
-                                    decoration: InputDecoration(
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(8.0),
-                                      ),
-                                      contentPadding: EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 8,
-                                      ),
-                                    ),
-                                    items: _attempts.map((int attempt) {
-                                      return DropdownMenuItem<int>(
-                                        value: attempt,
-                                        child: Text('Attempt $attempt'),
-                                      );
-                                    }).toList(),
-                                    onChanged: (int? newValue) {
-                                      setState(() {
-                                        _selectedAttempt = newValue!;
-                                      });
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      
                       SizedBox(height: 32),
                       
-                      // Performance details section
+                      // Ball Juggling Counter Section
                       Text(
-                        'Performance Details',
+                        'Juggling Count',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -463,66 +392,187 @@ class _BalanceDrillPageState extends State<BalanceDrillPage> {
                       ),
                       SizedBox(height: 16),
                       
-                      // Balance score slider
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      // UPDATED: Juggling count input with smaller, cleaner counter
+                      Card(
+                        elevation: 3,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(20.0),
+                          child: Column(
                             children: [
-                              Text(
-                                'Balance Score: $_balanceScore/10',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
+                              // UPDATED: Cleaner counter display without icon
                               Container(
-                                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                padding: EdgeInsets.all(20), // Reduced padding
                                 decoration: BoxDecoration(
-                                  color: _getScoreColor(_balanceScore),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  _getScoreLabel(_balanceScore),
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      widget.drillColor.withOpacity(0.8),
+                                      widget.drillColor,
+                                    ],
                                   ),
+                                  borderRadius: BorderRadius.circular(16), // Smaller radius
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: widget.drillColor.withOpacity(0.3),
+                                      blurRadius: 8, // Reduced blur
+                                      offset: Offset(0, 4), // Smaller offset
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  children: [
+                                    // REMOVED: Ball icon for cleaner look
+                                    Text(
+                                      'Ball Juggles',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    SizedBox(height: 8),
+                                    Text(
+                                      '$_jugglingCount',
+                                      style: TextStyle(
+                                        fontSize: 42, // Slightly smaller
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
+                              
+                              SizedBox(height: 20), // Reduced spacing
+                              
+                              // Counter controls
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  // Decrease button
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.shade100,
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: IconButton(
+                                      onPressed: _jugglingCount > 0 ? () {
+                                        setState(() {
+                                          _jugglingCount--;
+                                        });
+                                      } : null,
+                                      icon: Icon(
+                                        Icons.remove,
+                                        color: _jugglingCount > 0 ? Colors.red : Colors.grey,
+                                        size: 28,
+                                      ),
+                                      iconSize: 48,
+                                    ),
+                                  ),
+                                  
+                                  // Manual input
+                                  Container(
+                                    width: 120,
+                                    child: TextField(
+                                      textAlign: TextAlign.center,
+                                      keyboardType: TextInputType.number,
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      decoration: InputDecoration(
+                                        hintText: 'Enter count',
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        contentPadding: EdgeInsets.symmetric(vertical: 12),
+                                      ),
+                                      onChanged: (value) {
+                                        int? count = int.tryParse(value);
+                                        if (count != null && count >= 0) {
+                                          setState(() {
+                                            _jugglingCount = count;
+                                          });
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                  
+                                  // Increase button
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.green.shade100,
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: IconButton(
+                                      onPressed: () {
+                                        setState(() {
+                                          _jugglingCount++;
+                                        });
+                                      },
+                                      icon: Icon(
+                                        Icons.add,
+                                        color: Colors.green,
+                                        size: 28,
+                                      ),
+                                      iconSize: 48,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              
+                              SizedBox(height: 16),
+                              
+                              // Quick preset buttons
+                              Text(
+                                'Quick Presets:',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                children: [5, 10, 15, 20, 25, 30, 40, 50].map((count) {
+                                  return InkWell(
+                                    onTap: () {
+                                      setState(() {
+                                        _jugglingCount = count;
+                                      });
+                                    },
+                                    child: Container(
+                                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: _jugglingCount == count 
+                                            ? widget.drillColor.withOpacity(0.2)
+                                            : Colors.grey.shade100,
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
+                                          color: _jugglingCount == count 
+                                              ? widget.drillColor
+                                              : Colors.grey.shade300,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        '$count',
+                                        style: TextStyle(
+                                          color: _jugglingCount == count 
+                                              ? widget.drillColor
+                                              : Colors.grey.shade600,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
                             ],
                           ),
-                          SizedBox(height: 8),
-                          Slider(
-                            value: _balanceScore.toDouble(),
-                            min: 1,
-                            max: 10,
-                            divisions: 9,
-                            activeColor: _getScoreColor(_balanceScore),
-                            inactiveColor: Colors.grey.shade300,
-                            label: _balanceScore.toString(),
-                            onChanged: (double value) {
-                              setState(() {
-                                _balanceScore = value.round();
-                              });
-                            },
-                          ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Poor',
-                                style: TextStyle(color: Colors.grey.shade600),
-                              ),
-                              Text(
-                                'Excellent',
-                                style: TextStyle(color: Colors.grey.shade600),
-                              ),
-                            ],
-                          ),
-                        ],
+                        ),
                       ),
                       
                       SizedBox(height: 16),
@@ -533,7 +583,7 @@ class _BalanceDrillPageState extends State<BalanceDrillPage> {
                         maxLines: 3,
                         decoration: InputDecoration(
                           labelText: 'Coach Notes',
-                          hintText: 'Add observations, feedback or areas for improvement',
+                          hintText: 'Add observations about technique, consistency, or areas for improvement',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10.0),
                           ),
@@ -557,7 +607,7 @@ class _BalanceDrillPageState extends State<BalanceDrillPage> {
                             ),
                           ),
                           child: Text(
-                            'Save Balance Record for ${_getSelectedWeekTimestamp()}',
+                            'Save Record: $_jugglingCount juggles for ${_getSelectedWeekTimestamp()}',
                             style: TextStyle(fontSize: 16),
                           ),
                         ),
@@ -596,6 +646,7 @@ class _BalanceDrillPageState extends State<BalanceDrillPage> {
                                   itemCount: _previousRecords.length,
                                   itemBuilder: (context, index) {
                                     final record = _previousRecords[index];
+                                    int juggles = record['jugglingCount'] ?? 0;
                                     
                                     return Card(
                                       margin: EdgeInsets.only(bottom: 12),
@@ -614,8 +665,9 @@ class _BalanceDrillPageState extends State<BalanceDrillPage> {
                                                 Column(
                                                   crossAxisAlignment: CrossAxisAlignment.start,
                                                   children: [
+                                                    // UPDATED: Removed ball icon from history records too
                                                     Text(
-                                                      'Balance Score: ${record['balanceScore']}/10',
+                                                      '$juggles Juggles',
                                                       style: TextStyle(
                                                         fontSize: 18,
                                                         fontWeight: FontWeight.bold,
@@ -642,34 +694,6 @@ class _BalanceDrillPageState extends State<BalanceDrillPage> {
                                                       ],
                                                     ),
                                                   ],
-                                                ),
-                                                Container(
-                                                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                                  decoration: BoxDecoration(
-                                                    color: _getScoreColor(record['balanceScore']),
-                                                    borderRadius: BorderRadius.circular(20),
-                                                  ),
-                                                  child: Text(
-                                                    _getScoreLabel(record['balanceScore']),
-                                                    style: TextStyle(
-                                                      color: Colors.white,
-                                                      fontWeight: FontWeight.bold,
-                                                      fontSize: 12,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            SizedBox(height: 8),
-                                            Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                              children: [
-                                                Text(
-                                                  'Attempt: ${record['attempt']}',
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                    color: Colors.grey.shade600,
-                                                  ),
                                                 ),
                                               ],
                                             ),
@@ -712,21 +736,5 @@ class _BalanceDrillPageState extends State<BalanceDrillPage> {
                   ),
                 ),
     );
-  }
-  
-  Color _getScoreColor(int score) {
-    if (score >= 9) return Colors.green;
-    if (score >= 7) return Colors.lightGreen;
-    if (score >= 5) return Colors.orange;
-    if (score >= 3) return Colors.deepOrange;
-    return Colors.red;
-  }
-  
-  String _getScoreLabel(int score) {
-    if (score >= 9) return 'Excellent';
-    if (score >= 7) return 'Good';
-    if (score >= 5) return 'Average';
-    if (score >= 3) return 'Poor';
-    return 'Very Poor';
   }
 }

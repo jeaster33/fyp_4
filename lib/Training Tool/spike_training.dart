@@ -58,6 +58,18 @@ class _SpikeDrillPageState extends State<SpikeDrillPage> {
     }
   }
 
+  // CHANGED: Smart percentage formatting function
+  String _getFormattedPercentage(double rate) {
+    double percentage = rate * 100;
+    if (percentage == 100.0) {
+      return '100%'; // No decimal for exactly 100%
+    } else if (percentage % 1 == 0) {
+      return '${percentage.toInt()}%'; // No decimal for whole numbers
+    } else {
+      return '${percentage.toStringAsFixed(1)}%'; // One decimal for others
+    }
+  }
+
   String _getSelectedWeekTimestamp() {
     return 'Week $_selectedWeek';
   }
@@ -515,7 +527,7 @@ class _SpikeDrillPageState extends State<SpikeDrillPage> {
                               
                               SizedBox(height: 16),
                               
-                              // Success Rate
+                              // Success Rate - CHANGED: Using smart formatting
                               Container(
                                 width: double.infinity,
                                 padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
@@ -534,7 +546,7 @@ class _SpikeDrillPageState extends State<SpikeDrillPage> {
                                     ),
                                     SizedBox(height: 8),
                                     Text(
-                                      '${(_successRate * 100).toStringAsFixed(1)}%',
+                                      _getFormattedPercentage(_successRate), // CHANGED: Smart formatting
                                       style: TextStyle(
                                         fontSize: 28,
                                         fontWeight: FontWeight.bold,
@@ -647,7 +659,7 @@ class _SpikeDrillPageState extends State<SpikeDrillPage> {
                                                   crossAxisAlignment: CrossAxisAlignment.start,
                                                   children: [
                                                     Text(
-                                                      'Success: ${(record['successRate'] * 100).toStringAsFixed(1)}%',
+                                                      'Success: ${_getFormattedPercentage(record['successRate'])}', // CHANGED: Smart formatting
                                                       style: TextStyle(
                                                         fontSize: 20,
                                                         fontWeight: FontWeight.bold,
