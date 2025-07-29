@@ -15,7 +15,7 @@ class EnduranceDrillPage extends StatefulWidget {
   final Map<String, dynamic>? courseData;
 
   const EnduranceDrillPage({
-    Key? key,
+    super.key,
     required this.studentId,
     required this.studentName,
     required this.studentUsername,
@@ -25,7 +25,7 @@ class EnduranceDrillPage extends StatefulWidget {
     required this.drillName,
     required this.drillColor,
     this.courseData,
-  }) : super(key: key);
+  });
 
   @override
   _EnduranceDrillPageState createState() => _EnduranceDrillPageState();
@@ -37,11 +37,11 @@ class _EnduranceDrillPageState extends State<EnduranceDrillPage> {
   bool _isLoading = false;
   bool _timerRunning = false;
   bool _timerPaused = false;
-  Stopwatch _stopwatch = Stopwatch();
+  final Stopwatch _stopwatch = Stopwatch();
   late Timer _timer;
   String _elapsedTime = '00:00.0';
   
-  TextEditingController _notesController = TextEditingController();
+  final TextEditingController _notesController = TextEditingController();
   
   // Week selection variables
   int _selectedWeek = 1;
@@ -436,7 +436,7 @@ class _EnduranceDrillPageState extends State<EnduranceDrillPage> {
                                     Icon(Icons.access_time, color: widget.drillColor),
                                     SizedBox(width: 8),
                                     Text(
-                                      'Recording for: Week ${_selectedWeek}',
+                                      'Recording for: Week $_selectedWeek',
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,

@@ -14,7 +14,7 @@ class SpikeDrillPage extends StatefulWidget {
   final Map<String, dynamic>? courseData;
 
   const SpikeDrillPage({
-    Key? key,
+    super.key,
     required this.studentId,
     required this.studentName,
     required this.studentUsername,
@@ -24,7 +24,7 @@ class SpikeDrillPage extends StatefulWidget {
     required this.drillName,
     required this.drillColor,
     this.courseData,
-  }) : super(key: key);
+  });
 
   @override
   _SpikeDrillPageState createState() => _SpikeDrillPageState();
@@ -35,7 +35,7 @@ class _SpikeDrillPageState extends State<SpikeDrillPage> {
   
   bool _isLoading = false;
   
-  TextEditingController _notesController = TextEditingController();
+  final TextEditingController _notesController = TextEditingController();
   int _successfulSpikes = 0;
   int _totalAttempts = 10;
   double get _successRate => _totalAttempts > 0 ? _successfulSpikes / _totalAttempts : 0;
@@ -420,7 +420,7 @@ class _SpikeDrillPageState extends State<SpikeDrillPage> {
                                     Icon(Icons.access_time, color: widget.drillColor),
                                     SizedBox(width: 8),
                                     Text(
-                                      'Recording for: Week ${_selectedWeek}',
+                                      'Recording for: Week $_selectedWeek',
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,

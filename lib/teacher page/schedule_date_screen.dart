@@ -14,7 +14,7 @@ class ScheduleDateScreen extends StatefulWidget {
   final TimeOfDay? existingEndTime;
 
   const ScheduleDateScreen({
-    Key? key, 
+    super.key, 
     required this.userId,
     this.existingSessionId,
     this.existingTitle,
@@ -22,7 +22,7 @@ class ScheduleDateScreen extends StatefulWidget {
     this.existingDate,
     this.existingStartTime,
     this.existingEndTime,
-  }) : super(key: key);
+  });
 
   @override
   _ScheduleDateScreenState createState() => _ScheduleDateScreenState();
@@ -73,8 +73,8 @@ class _ScheduleDateScreenState extends State<ScheduleDateScreen> {
       builder: (context, child) {
         return Theme(
           data: ThemeData.light().copyWith(
-            primaryColor: Colors.blue,
-            colorScheme: ColorScheme.light(primary: Colors.blue),
+            primaryColor: Color(0xFF3B82F6),
+            colorScheme: ColorScheme.light(primary: Color(0xFF3B82F6)),
             buttonTheme: ButtonThemeData(textTheme: ButtonTextTheme.primary),
           ),
           child: child!,
@@ -95,8 +95,8 @@ class _ScheduleDateScreenState extends State<ScheduleDateScreen> {
       builder: (context, child) {
         return Theme(
           data: ThemeData.light().copyWith(
-            primaryColor: Colors.blue,
-            colorScheme: ColorScheme.light(primary: Colors.blue),
+            primaryColor: Color(0xFF3B82F6),
+            colorScheme: ColorScheme.light(primary: Color(0xFF3B82F6)),
             buttonTheme: ButtonThemeData(textTheme: ButtonTextTheme.primary),
           ),
           child: child!,
@@ -126,8 +126,8 @@ class _ScheduleDateScreenState extends State<ScheduleDateScreen> {
       builder: (context, child) {
         return Theme(
           data: ThemeData.light().copyWith(
-            primaryColor: Colors.blue,
-            colorScheme: ColorScheme.light(primary: Colors.blue),
+            primaryColor: Color(0xFF3B82F6),
+            colorScheme: ColorScheme.light(primary: Color(0xFF3B82F6)),
             buttonTheme: ButtonThemeData(textTheme: ButtonTextTheme.primary),
           ),
           child: child!,
@@ -226,7 +226,12 @@ Future<void> _sendNotifications(String sessionId, bool isNewSession) async {
   Future<void> _saveSchedule() async {
     if (_titleController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a title for this session')),
+        SnackBar(
+          content: Text('Please enter a title for this session'),
+          backgroundColor: Colors.red.shade600,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
       );
       return;
     }
@@ -238,7 +243,12 @@ Future<void> _sendNotifications(String sessionId, bool isNewSession) async {
     // Check if end time is after start time using formatted strings for comparison
     if (formattedEndTime.compareTo(formattedStartTime) <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('End time must be after start time')),
+        SnackBar(
+          content: Text('End time must be after start time'),
+          backgroundColor: Colors.red.shade600,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
       );
       return;
     }
@@ -265,7 +275,12 @@ Future<void> _sendNotifications(String sessionId, bool isNewSession) async {
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Session updated successfully')),
+          SnackBar(
+            content: Text('Session updated successfully'),
+            backgroundColor: Colors.green.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
         );
       } else {
         // Create new session
@@ -283,7 +298,12 @@ Future<void> _sendNotifications(String sessionId, bool isNewSession) async {
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Session scheduled successfully')),
+          SnackBar(
+            content: Text('Session scheduled successfully'),
+            backgroundColor: Colors.green.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
         );
 
         // Clear form after creating (but not after editing)
@@ -299,7 +319,12 @@ Future<void> _sendNotifications(String sessionId, bool isNewSession) async {
       
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error saving session: $e')),
+        SnackBar(
+          content: Text('Error saving session: $e'),
+          backgroundColor: Colors.red.shade600,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
       );
     } finally {
       setState(() {
@@ -313,108 +338,259 @@ Future<void> _sendNotifications(String sessionId, bool isNewSession) async {
     String formattedDate = DateFormat('EEEE, MMMM d, yyyy').format(selectedDate);
     
     return Scaffold(
+      backgroundColor: Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: Text(_isEditMode ? 'Edit Session' : 'Create New Session'),
-        backgroundColor: Colors.blue,
+        title: Text(
+          _isEditMode ? 'Edit Session' : 'Create New Session',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        backgroundColor: Color(0xFF3B82F6),
         foregroundColor: Colors.white,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.only(
+            bottomLeft: Radius.circular(20),
+            bottomRight: Radius.circular(20),
+          ),
+        ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              _isEditMode ? 'Update Session Details' : 'Create New Schedule',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
+            // REMOVED: Header section completely removed
+            
+            // Text fields section - no change
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: _titleController,
-              decoration: InputDecoration(
-                labelText: 'Session Title',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10.0),
+              child: TextField(
+                controller: _titleController,
+                decoration: InputDecoration(
+                  labelText: 'Session Title',
+                  labelStyle: TextStyle(color: Color(0xFF3B82F6)),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.all(20),
+                  prefixIcon: Container(
+                    margin: EdgeInsets.all(12),
+                    padding: EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Color(0xFF3B82F6).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.title, color: Color(0xFF3B82F6), size: 20),
+                  ),
                 ),
-                prefixIcon: const Icon(Icons.title),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
             ),
-            const SizedBox(height: 15),
-            TextField(
-              controller: _descriptionController,
-              maxLines: 3,
-              decoration: InputDecoration(
-                labelText: 'Description',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10.0),
+            const SizedBox(height: 16),
+            
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: TextField(
+                controller: _descriptionController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  labelText: 'Description',
+                  labelStyle: TextStyle(color: Color(0xFF3B82F6)),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.all(20),
+                  alignLabelWithHint: true,
+                  prefixIcon: Container(
+                    margin: EdgeInsets.fromLTRB(12, 12, 12, 0),
+                    padding: EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Color(0xFF3B82F6).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.description, color: Color(0xFF3B82F6), size: 20),
+                  ),
                 ),
-                prefixIcon: const Icon(Icons.description),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
+            
+            // Date & Time card - no change
             Card(
-              elevation: 4,
+              elevation: 8,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(20),
               ),
+              color: Colors.white,
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(20.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Date & Time',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
+                    Row(
+                      children: [
+                        Container(
+                          padding: EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Color(0xFF3B82F6).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(Icons.schedule, color: Color(0xFF3B82F6), size: 20),
+                        ),
+                        SizedBox(width: 12),
+                        Text(
+                          'Date & Time',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1F2937),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ListTile(
+                        leading: Container(
+                          padding: EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Color(0xFF3B82F6).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(Icons.calendar_today, color: Color(0xFF3B82F6), size: 20),
+                        ),
+                        title: Text('Select Date', style: TextStyle(fontWeight: FontWeight.w600)),
+                        subtitle: Text(formattedDate, style: TextStyle(color: Color(0xFF3B82F6), fontWeight: FontWeight.w500)),
+                        onTap: () => _selectDate(context),
+                        trailing: Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
                       ),
                     ),
-                    const SizedBox(height: 15),
-                    ListTile(
-                      leading: const Icon(Icons.calendar_today, color: Colors.blue),
-                      title: const Text('Select Date'),
-                      subtitle: Text(formattedDate),
-                      onTap: () => _selectDate(context),
+                    SizedBox(height: 12),
+                    
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ListTile(
+                        leading: Container(
+                          padding: EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Color(0xFF10B981).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(Icons.access_time, color: Color(0xFF10B981), size: 20),
+                        ),
+                        title: Text('Start Time', style: TextStyle(fontWeight: FontWeight.w600)),
+                        subtitle: Text(startTime.format(context), style: TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.w500)),
+                        onTap: () => _selectStartTime(context),
+                        trailing: Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+                      ),
                     ),
-                    ListTile(
-                      leading: const Icon(Icons.access_time, color: Colors.blue),
-                      title: const Text('Start Time'),
-                      subtitle: Text(startTime.format(context)),
-                      onTap: () => _selectStartTime(context),
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.access_time_filled, color: Colors.blue),
-                      title: const Text('End Time'),
-                      subtitle: Text(endTime.format(context)),
-                      onTap: () => _selectEndTime(context),
+                    SizedBox(height: 12),
+                    
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ListTile(
+                        leading: Container(
+                          padding: EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Color(0xFFEF4444).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(Icons.access_time_filled, color: Color(0xFFEF4444), size: 20),
+                        ),
+                        title: Text('End Time', style: TextStyle(fontWeight: FontWeight.w600)),
+                        subtitle: Text(endTime.format(context), style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.w500)),
+                        onTap: () => _selectEndTime(context),
+                        trailing: Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 30),
-            SizedBox(
+            const SizedBox(height: 32),
+            
+            // Save button - no change
+            Container(
               width: double.infinity,
-              height: 50,
+              height: 56,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(0xFF3B82F6).withOpacity(0.3),
+                    blurRadius: 12,
+                    offset: Offset(0, 6),
+                  ),
+                ],
+              ),
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _saveSchedule,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
+                  backgroundColor: Colors.transparent,
                   foregroundColor: Colors.white,
+                  elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
                 child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : Text(
-                        _isEditMode ? 'Update Session' : 'Schedule Session',
-                        style: TextStyle(fontSize: 16),
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          ),
+                          SizedBox(width: 12),
+                          Text('Saving...', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        ],
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(_isEditMode ? Icons.update : Icons.check_circle, size: 22),
+                          SizedBox(width: 10),
+                          Text(
+                            _isEditMode ? 'Update Session' : 'Schedule Session',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                        ],
                       ),
               ),
             ),
+            SizedBox(height: 20),
           ],
         ),
       ),

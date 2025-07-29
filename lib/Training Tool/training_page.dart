@@ -7,10 +7,10 @@ class TrainingPage extends StatelessWidget {
   final String displayName;
 
   const TrainingPage({
-    Key? key,
+    super.key,
     required this.userId,
     required this.displayName,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

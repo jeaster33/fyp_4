@@ -14,7 +14,7 @@ class BalanceDrillPage extends StatefulWidget {
   final Map<String, dynamic>? courseData;
 
   const BalanceDrillPage({
-    Key? key,
+    super.key,
     required this.studentId,
     required this.studentName,
     required this.studentUsername,
@@ -24,7 +24,7 @@ class BalanceDrillPage extends StatefulWidget {
     required this.drillName,
     required this.drillColor,
     this.courseData,
-  }) : super(key: key);
+  });
 
   @override
   _BalanceDrillPageState createState() => _BalanceDrillPageState();
@@ -35,7 +35,7 @@ class _BalanceDrillPageState extends State<BalanceDrillPage> {
   
   bool _isLoading = false;
   
-  TextEditingController _notesController = TextEditingController();
+  final TextEditingController _notesController = TextEditingController();
   int _jugglingCount = 0; // Number of successful ball juggles
   
   // Week selection variables
@@ -365,7 +365,7 @@ class _BalanceDrillPageState extends State<BalanceDrillPage> {
                                     Icon(Icons.access_time, color: widget.drillColor),
                                     SizedBox(width: 8),
                                     Text(
-                                      'Recording for: Week ${_selectedWeek}',
+                                      'Recording for: Week $_selectedWeek',
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
@@ -473,7 +473,7 @@ class _BalanceDrillPageState extends State<BalanceDrillPage> {
                                   ),
                                   
                                   // Manual input
-                                  Container(
+                                  SizedBox(
                                     width: 120,
                                     child: TextField(
                                       textAlign: TextAlign.center,

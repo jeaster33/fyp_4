@@ -13,14 +13,14 @@ class StudentListPage extends StatefulWidget {
 
 
   const StudentListPage({
-    Key? key,
+    super.key,
     required this.coachId,
     required this.coachName,
     required this.drillName,
     required this.drillColor,
     this.courseData,  // Add this line
 
-  }) : super(key: key);
+  });
 
   @override
   _StudentListPageState createState() => _StudentListPageState();

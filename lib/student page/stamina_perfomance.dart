@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 class StaminaPerformancePage extends StatefulWidget {
-  const StaminaPerformancePage({Key? key}) : super(key: key);
+  const StaminaPerformancePage({super.key});
 
   @override
   State<StaminaPerformancePage> createState() => _StaminaPerformancePageState();
@@ -143,7 +143,7 @@ class _StaminaPerformancePageState extends State<StaminaPerformancePage> {
           SizedBox(height: 24),
           _buildSectionTitle('Training History'),
           SizedBox(height: 8),
-          ..._staminaRecords.reversed.map((record) => _buildStaminaRecordCard(record)).toList(),
+          ..._staminaRecords.reversed.map((record) => _buildStaminaRecordCard(record)),
         ],
       ),
     );

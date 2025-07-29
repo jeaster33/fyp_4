@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 class SpikePerformancePage extends StatefulWidget {
-  const SpikePerformancePage({Key? key}) : super(key: key);
+  const SpikePerformancePage({super.key});
 
   @override
   State<SpikePerformancePage> createState() => _SpikePerformancePageState();
@@ -127,7 +127,7 @@ class _SpikePerformancePageState extends State<SpikePerformancePage> {
           SizedBox(height: 24),
           _buildSectionTitle('Training History'),
           SizedBox(height: 8),
-          ..._spikeRecords.reversed.map((record) => _buildSpikeRecordCard(record)).toList(),
+          ..._spikeRecords.reversed.map((record) => _buildSpikeRecordCard(record)),
         ],
       ),
     );

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'gameboard.dart';
 
 class ScoreboardPage extends StatefulWidget {
+  const ScoreboardPage({super.key});
+
   @override
   _ScoreboardPageState createState() => _ScoreboardPageState();
 }
@@ -300,7 +302,6 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                       Expanded(
                         child: ElevatedButton(
                           onPressed: undoLastScore,
-                          child: Text('Undo Point', style: TextStyle(fontSize: 16)),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.orange,
                             foregroundColor: Colors.white,
@@ -310,13 +311,13 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                             ),
                             elevation: 3,
                           ),
+                          child: Text('Undo Point', style: TextStyle(fontSize: 16)),
                         ),
                       ),
                       SizedBox(width: 20),
                       Expanded(
                         child: ElevatedButton(
                           onPressed: resetMatch,
-                          child: Text('New Match', style: TextStyle(fontSize: 16)),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red,
                             foregroundColor: Colors.white,
@@ -326,6 +327,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                             ),
                             elevation: 3,
                           ),
+                          child: Text('New Match', style: TextStyle(fontSize: 16)),
                         ),
                       ),
                     ],
@@ -340,7 +342,6 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                           MaterialPageRoute(builder: (context) => TakrawTacticBoardApp()),
                         );
                       },
-                      child: Text('Go to Game Board', style: TextStyle(fontSize: 16)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue,
                         foregroundColor: Colors.white,
@@ -350,6 +351,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
                         ),
                         elevation: 3,
                       ),
+                      child: Text('Go to Game Board', style: TextStyle(fontSize: 16)),
                     ),
                   ),
                 ],
@@ -388,7 +390,6 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
         if (servingTeam == null && !matchOver)
           ElevatedButton(
             onPressed: () => startServing(team),
-            child: Text('Start Serving', style: TextStyle(fontSize: 16)),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,
               foregroundColor: Colors.white,
@@ -398,6 +399,7 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
               ),
               elevation: 3,
             ),
+            child: Text('Start Serving', style: TextStyle(fontSize: 16)),
           )
         else
           Stack(
@@ -464,6 +466,8 @@ class _ScoreboardPageState extends State<ScoreboardPage> {
 }
 
 class SepakTakrawApp extends StatelessWidget {
+  const SepakTakrawApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

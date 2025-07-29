@@ -47,7 +47,8 @@ dependencies:
   path_provider: ^2.1.5
   flutter_local_notifications: ^19.2.1
   firebase_messaging: ^15.2.6
-
+  http: ^1.1.0  # Add this for HTTP requests
+  crypto: ^3.0.3  # Add this for email encryption
 
 dev_dependencies:
   flutter_test:

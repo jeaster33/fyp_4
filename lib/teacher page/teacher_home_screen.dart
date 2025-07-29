@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../Game tool/ScoreboardPage.dart';
 import '../Training Tool/training_page.dart';
-import '../Training Tool/training_type.dart';
 import '../authentication page/splash_screen.dart';
 import '../Generate_report.dart';
 import 'calender_coach_screen.dart';

@@ -8,10 +8,10 @@ class TrainingTypesPage extends StatefulWidget {
   final String? displayName;
 
   const TrainingTypesPage({
-    Key? key,
+    super.key,
     required this.userId,
     this.displayName,
-  }) : super(key: key);
+  });
 
   @override
   _TrainingTypesPageState createState() => _TrainingTypesPageState();

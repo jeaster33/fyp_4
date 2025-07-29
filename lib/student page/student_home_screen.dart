@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../authentication page/splash_screen.dart';
 import 'profile_page.dart';
 import 'performance_page.dart';
+import 'ranking_training__page.dart';
 import 'student_schedule_list_screen.dart';
 import 'attendance_student_page.dart';
 
@@ -17,13 +18,13 @@ class StudentHomeScreen extends StatefulWidget {
 class _StudentHomeScreenState extends State<StudentHomeScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  
+
   String _fullName = 'Athlete';
   String _username = '';
   String _profileImageUrl = '';
   bool _isLoading = true;
-  
-  // ADDED: Dynamic statistics variables
+
+  // Dynamic statistics variables
   int _upcomingSessions = 0;
   String _attendancePercentage = '0%';
   String _currentWeek = 'N/A';
@@ -33,19 +34,20 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   void initState() {
     super.initState();
     _loadUserData();
-    _loadStudentStatistics(); // ADDED: Load dynamic statistics
+    _loadStudentStatistics();
   }
 
   Future<void> _loadUserData() async {
     setState(() {
       _isLoading = true;
     });
-    
+
     try {
       User? user = _auth.currentUser;
       if (user != null) {
-        DocumentSnapshot userData = await _firestore.collection('users').doc(user.uid).get();
-        
+        DocumentSnapshot userData =
+            await _firestore.collection('users').doc(user.uid).get();
+
         if (userData.exists) {
           Map<String, dynamic> data = userData.data() as Map<String, dynamic>;
           setState(() {
@@ -64,48 +66,47 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     }
   }
 
-  // ADDED: Function to load student-specific statistics
   Future<void> _loadStudentStatistics() async {
     setState(() {
       _loadingStats = true;
     });
-    
+
     try {
       final User? user = _auth.currentUser;
       if (user == null) return;
-      
+
       // Get upcoming training sessions
       DateTime now = DateTime.now();
       DateTime today = DateTime(now.year, now.month, now.day);
-      
+
       QuerySnapshot upcomingSessionsSnapshot = await _firestore
           .collection('training_sessions')
           .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(today))
           .get();
-      
+
       // Get attendance records for this student
       QuerySnapshot attendanceSnapshot = await _firestore
           .collection('attendance_records')
           .where('studentId', isEqualTo: user.uid)
           .get();
-      
+
       // Calculate attendance percentage
       double attendanceRate = 0.0;
       if (attendanceSnapshot.docs.isNotEmpty) {
         int presentCount = 0;
         int totalSessions = attendanceSnapshot.docs.length;
-        
+
         for (var doc in attendanceSnapshot.docs) {
           Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
           if (data['present'] == true) {
             presentCount++;
           }
         }
-        
+
         attendanceRate = (presentCount / totalSessions) * 100;
       }
-      
-      // CHANGED: Smart percentage formatting for attendance
+
+      // Smart percentage formatting for attendance
       String formattedAttendance;
       if (attendanceRate == 100.0) {
         formattedAttendance = '100%';
@@ -114,7 +115,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       } else {
         formattedAttendance = '${attendanceRate.toStringAsFixed(1)}%';
       }
-      
+
       // Get current week from active training course
       String currentWeek = 'N/A';
       try {
@@ -123,30 +124,29 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             .where('isActive', isEqualTo: true)
             .limit(1)
             .get();
-        
+
         if (courseSnapshot.docs.isNotEmpty) {
           DocumentSnapshot doc = courseSnapshot.docs.first;
           Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-          
+
           DateTime startDate = (data['startDate'] as Timestamp).toDate();
           DateTime currentDate = DateTime.now();
           int daysSinceStart = currentDate.difference(startDate).inDays;
           int weekNumber = (daysSinceStart / 7).floor() + 1;
-          
+
           currentWeek = 'Week $weekNumber';
         }
       } catch (e) {
         print('Error getting current week: $e');
         currentWeek = 'No Course';
       }
-      
+
       setState(() {
         _upcomingSessions = upcomingSessionsSnapshot.docs.length;
         _attendancePercentage = formattedAttendance;
         _currentWeek = currentWeek;
         _loadingStats = false;
       });
-      
     } catch (e) {
       print('Error loading student statistics: $e');
       setState(() {
@@ -173,284 +173,400 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Color(0xFFF5F7FA),
-      body: SafeArea(
-        child: _isLoading 
-            ? Center(
-                child: CircularProgressIndicator(
-                  color: Color(0xFF10B981),
-                ),
-              )
-            : SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header - matching teacher design
-                    Container(
-                      padding: EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [Color(0xFF10B981), Color(0xFF059669), Color(0xFF047857)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.only(
-                          bottomLeft: Radius.circular(32),
-                          bottomRight: Radius.circular(32),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Color(0xFF10B981).withOpacity(0.4),
-                            blurRadius: 25,
-                            offset: Offset(0, 10),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF10B981).withOpacity(0.1),
+              Colors.white,
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: _isLoading 
+              ? Center(
+                  child: CircularProgressIndicator(
+                    color: Color(0xFF10B981),
+                  ),
+                )
+              : SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header
+                      Container(
+                        padding: EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Color(0xFF10B981),
+                              Color(0xFF059669),
+                              Color(0xFF047857)
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
-                        ],
+                          borderRadius: BorderRadius.only(
+                            bottomLeft: Radius.circular(32),
+                            bottomRight: Radius.circular(32),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Color(0xFF10B981).withOpacity(0.4),
+                              blurRadius: 25,
+                              offset: Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        padding: EdgeInsets.symmetric(
+                                            horizontal: 10, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.2),
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color: Colors.white.withOpacity(0.3),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          'ATHLETE DASHBOARD',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w700,
+                                            letterSpacing: 1.2,
+                                          ),
+                                        ),
+                                      ),
+                                      SizedBox(height: 8),
+                                      Text(
+                                        _fullName.isNotEmpty
+                                            ? _fullName
+                                            : 'Athlete $_username',
+                                        style: TextStyle(
+                                          fontSize: 26,
+                                          fontWeight: FontWeight.w800,
+                                          color: Colors.white,
+                                          letterSpacing: -0.5,
+                                        ),
+                                      ),
+                                      SizedBox(height: 4),
+                                      Text(
+                                        'Sepak Takraw Training',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.white.withOpacity(0.8),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Row(
+                                  children: [
+                                    // Profile button
+                                    GestureDetector(
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => ProfilePage(
+                                              onProfileUpdated: _loadUserData,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      child: Container(
+                                        height: 50,
+                                        width: 50,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: Colors.white.withOpacity(0.3),
+                                            width: 2,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color:
+                                                  Colors.black.withOpacity(0.15),
+                                              blurRadius: 10,
+                                              offset: Offset(0, 5),
+                                            ),
+                                          ],
+                                        ),
+                                        child: ClipOval(
+                                          child: _profileImageUrl.isNotEmpty
+                                              ? Image.network(_profileImageUrl,
+                                                  fit: BoxFit.cover)
+                                              : Icon(
+                                                  Icons.sports_handball,
+                                                  color: Color(0xFF10B981),
+                                                  size: 24,
+                                                ),
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(width: 12),
+                                    // Logout button
+                                    GestureDetector(
+                                      onTap: () => _signOut(context),
+                                      child: Container(
+                                        height: 50,
+                                        width: 50,
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              Color(0xFFEF4444),
+                                              Color(0xFFDC2626)
+                                            ],
+                                          ),
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Color(0xFFEF4444)
+                                                  .withOpacity(0.4),
+                                              blurRadius: 10,
+                                              offset: Offset(0, 5),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Icon(
+                                          Icons.logout,
+                                          color: Colors.white,
+                                          size: 22,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+
+                            SizedBox(height: 20),
+
+                            // Dynamic quick stats
+                            Row(
+                              children: [
+                                _buildSportStat(
+                                  _loadingStats ? '...' : '$_upcomingSessions',
+                                  'Sessions',
+                                  Color(0xFFFF6B35),
+                                ),
+                                SizedBox(width: 16),
+                                _buildSportStat(
+                                  _loadingStats ? '...' : _attendancePercentage,
+                                  'Attendance',
+                                  Color(0xFF3B82F6),
+                                ),
+                                SizedBox(width: 16),
+                                _buildSportStat(
+                                  _loadingStats ? '...' : _currentWeek,
+                                  'Current',
+                                  Color(0xFFF59E0B),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+
+                      // Content
+                      Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Training Tools Section
+                            _buildSectionTitle('Training Tools'),
+                            SizedBox(height: 16),
+
+                            // 2x2 Grid
+                            GridView.count(
+                              crossAxisCount: 2,
+                              shrinkWrap: true,
+                              physics: NeverScrollableScrollPhysics(),
+                              mainAxisSpacing: 16,
+                              crossAxisSpacing: 16,
+                              childAspectRatio: 1.1,
+                              children: [
+                                _buildUnifiedCard(
+                                  'PROFILE',
+                                  Icons.account_circle,
+                                  Color(0xFF10B981),
+                                  () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => ProfilePage(
+                                          onProfileUpdated: _loadUserData,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                _buildUnifiedCard(
+                                  'PERFORMANCE',
+                                  Icons.insights,
+                                  Color(0xFFF59E0B),
+                                  () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (context) =>
+                                              PerformancePage()),
+                                    );
+                                  },
+                                ),
+                                _buildUnifiedCard(
+                                  'SCHEDULE',
+                                  Icons.calendar_today,
+                                  Color(0xFF3B82F6),
+                                  () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            StudentScheduleListScreen(
+                                          userId: _auth.currentUser?.uid ?? '',
+                                        ),
+                                      ),
+                                    ).then((_) {
+                                      _loadStudentStatistics();
+                                    });
+                                  },
+                                ),
+                                _buildUnifiedCard(
+                                  'ATTENDANCE',
+                                  Icons.fact_check,
+                                  Color(0xFF8B5CF6),
+                                  () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            AttendanceStudentPage(),
+                                      ),
+                                    ).then((_) {
+                                      _loadStudentStatistics();
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+
+                            SizedBox(height: 24),
+
+                            // Rankings Card
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => RankingTrainingPage(),
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                padding: EdgeInsets.all(24),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Color(0xFFFF6B35),
+                                      Color(0xFFFF8C42),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Color(0xFFFF6B35).withOpacity(0.4),
+                                      blurRadius: 20,
+                                      offset: Offset(0, 8),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
                                   children: [
                                     Container(
-                                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      padding: EdgeInsets.all(14),
                                       decoration: BoxDecoration(
                                         color: Colors.white.withOpacity(0.2),
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(
-                                          color: Colors.white.withOpacity(0.3),
-                                        ),
+                                        borderRadius: BorderRadius.circular(14),
                                       ),
-                                      child: Text(
-                                        'ATHLETE DASHBOARD',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: 1.2,
-                                        ),
-                                      ),
-                                    ),
-                                    SizedBox(height: 8),
-                                    Text(
-                                      _fullName.isNotEmpty ? _fullName : 'Athlete $_username',
-                                      style: TextStyle(
-                                        fontSize: 26,
-                                        fontWeight: FontWeight.w800,
+                                      child: Icon(
+                                        Icons.leaderboard,
                                         color: Colors.white,
-                                        letterSpacing: -0.5,
+                                        size: 26,
                                       ),
                                     ),
-                                    SizedBox(height: 4),
-                                    Text(
-                                      'Sepak Takraw Training',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.white.withOpacity(0.8),
-                                        fontWeight: FontWeight.w500,
+                                    SizedBox(width: 18),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Training Rankings',
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                          SizedBox(height: 6),
+                                          Text(
+                                            'See who\'s leading this week\'s training',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color:
+                                                  Colors.white.withOpacity(0.8),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Icon(
+                                        Icons.arrow_forward,
+                                        color: Colors.white,
+                                        size: 20,
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
-                              Row(
-                                children: [
-                                  // Profile button - matching teacher design
-                                  GestureDetector(
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => ProfilePage(
-                                            onProfileUpdated: _loadUserData,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                    child: Container(
-                                      height: 50,
-                                      width: 50,
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: Colors.white.withOpacity(0.3),
-                                          width: 2,
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withOpacity(0.15),
-                                            blurRadius: 10,
-                                            offset: Offset(0, 5),
-                                          ),
-                                        ],
-                                      ),
-                                      child: ClipOval(
-                                        child: _profileImageUrl.isNotEmpty
-                                            ? Image.network(_profileImageUrl, fit: BoxFit.cover)
-                                            : Icon(
-                                                Icons.sports_handball,
-                                                color: Color(0xFF10B981),
-                                                size: 24,
-                                              ),
-                                      ),
-                                    ),
-                                  ),
-                                  SizedBox(width: 12),
-                                  // Logout button - matching teacher design
-                                  GestureDetector(
-                                    onTap: () => _signOut(context),
-                                    child: Container(
-                                      height: 50,
-                                      width: 50,
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          colors: [Color(0xFFEF4444), Color(0xFFDC2626)],
-                                        ),
-                                        shape: BoxShape.circle,
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Color(0xFFEF4444).withOpacity(0.4),
-                                            blurRadius: 10,
-                                            offset: Offset(0, 5),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Icon(
-                                        Icons.logout,
-                                        color: Colors.white,
-                                        size: 22,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          
-                          SizedBox(height: 20),
-                          
-                          // UPDATED: Dynamic quick stats
-                          Row(
-                            children: [
-                              _buildSportStat(
-                                _loadingStats ? '...' : '$_upcomingSessions', // CHANGED: Dynamic upcoming sessions
-                                'Sessions', 
-                                Color(0xFFFF6B35),
-                              ),
-                              SizedBox(width: 16),
-                              _buildSportStat(
-                                _loadingStats ? '...' : _attendancePercentage, // CHANGED: Dynamic attendance percentage
-                                'Attendance', 
-                                Color(0xFF3B82F6),
-                              ),
-                              SizedBox(width: 16),
-                              _buildSportStat(
-                                _loadingStats ? '...' : _currentWeek, // CHANGED: Dynamic current week
-                                'Current', 
-                                Color(0xFFF59E0B),
-                              ),
-                            ],
-                          ),
-                        ],
+                            ),
+
+                            SizedBox(height: 20),
+                          ],
+                        ),
                       ),
-                    ),
-                    
-                    // Content
-                    Padding(
-                      padding: const EdgeInsets.all(24.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Training Tools Section - matching teacher style
-                          _buildSectionTitle('Training Tools'),
-                          SizedBox(height: 16),
-                          
-                          // Tool Grid - matching teacher design
-                          GridView.count(
-                            crossAxisCount: 2,
-                            shrinkWrap: true,
-                            physics: NeverScrollableScrollPhysics(),
-                            mainAxisSpacing: 16,
-                            crossAxisSpacing: 16,
-                            childAspectRatio: 1.1,
-                            children: [
-                              _buildUnifiedCard(
-                                'PROFILE',
-                                Icons.account_circle,
-                                Color(0xFF10B981),
-                                () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => ProfilePage(
-                                        onProfileUpdated: _loadUserData,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                              _buildUnifiedCard(
-                                'PERFORMANCE',
-                                Icons.insights,
-                                Color(0xFFF59E0B),
-                                () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (context) => PerformancePage()),
-                                  );
-                                },
-                              ),
-                              _buildUnifiedCard(
-                                'SCHEDULE',
-                                Icons.calendar_today,
-                                Color(0xFF3B82F6),
-                                () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => StudentScheduleListScreen(
-                                        userId: _auth.currentUser?.uid ?? '',
-                                      ),
-                                    ),
-                                  ).then((_) {
-                                    // ADDED: Refresh statistics when returning from schedule
-                                    _loadStudentStatistics();
-                                  });
-                                },
-                              ),
-                              _buildUnifiedCard(
-                                'ATTENDANCE',
-                                Icons.fact_check,
-                                Color(0xFF8B5CF6),
-                                () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => AttendanceStudentPage(),
-                                    ),
-                                  ).then((_) {
-                                    // ADDED: Refresh statistics when returning from attendance
-                                    _loadStudentStatistics();
-                                  });
-                                },
-                              ),
-                            ],
-                          ),
-                          
-                          SizedBox(height: 20),
-                        ],
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+        ),
       ),
     );
   }
-  
+
   Widget _buildSportStat(String value, String label, Color color) {
     return Expanded(
       child: Container(
@@ -486,7 +602,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       ),
     );
   }
-  
+
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
@@ -498,7 +614,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       ),
     );
   }
-  
+
   Widget _buildUnifiedCard(
     String title,
     IconData icon,

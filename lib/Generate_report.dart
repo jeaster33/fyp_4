@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:math';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -9,17 +8,16 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:open_file/open_file.dart';
-import 'package:flutter/services.dart' show rootBundle;
 
 class GenerateReportPage extends StatefulWidget {
   final String coachId;
   final String coachName;
 
   const GenerateReportPage({
-    Key? key,
+    super.key,
     required this.coachId,
     required this.coachName,
-  }) : super(key: key);
+  });
 
   @override
   _GenerateReportPageState createState() => _GenerateReportPageState();
@@ -102,7 +100,7 @@ class _GenerateReportPageState extends State<GenerateReportPage> {
         });
       }
       
-      // Load balance records
+      // Load balance records - UPDATED to use juggling count
       List<Map<String, dynamic>> allRecords = [];
       
       QuerySnapshot balanceSnapshot = await _firestore
@@ -112,10 +110,14 @@ class _GenerateReportPageState extends State<GenerateReportPage> {
           
       for (var doc in balanceSnapshot.docs) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        // CHANGED: Use juggling count instead of balance score
+        int jugglingCount = data['jugglingCount'] ?? data['balanceScore'] ?? 0;
+        
         allRecords.add({
           'id': doc.id,
           'recordType': 'Balance Training',
-          'score': data['balanceScore'] ?? 0,
+          'jugglingCount': jugglingCount, // ADDED: Store juggling count
+          'score': jugglingCount, // Keep for compatibility with other logic
           'timestamp': data['timestamp'],
           'courseName': data['courseName'] ?? 'Unknown Course',
           'notes': data['notes'] ?? '',
@@ -231,16 +233,7 @@ class _GenerateReportPageState extends State<GenerateReportPage> {
       // Generate the PDF
       final pdf = pw.Document();
       
-      // Add logo and header - with error handling for logo loading
-      Uint8List logoData;
-      try {
-        final ByteData logoBytes = await rootBundle.load('assets/logo.png');
-        logoData = logoBytes.buffer.asUint8List();
-      } catch (e) {
-        print('Logo loading failed: $e');
-        // Create a blank image if logo can't be loaded
-        logoData = Uint8List(0);
-      }
+      // Header without logo
       
       final studentName = _studentNames[_selectedStudentId] ?? 'Unknown Student';
       final reportDate = DateFormat('MMMM d, yyyy').format(DateTime.now());
@@ -253,32 +246,23 @@ class _GenerateReportPageState extends State<GenerateReportPage> {
             return pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                // Header with logo
+                // Header
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    logoData.isNotEmpty
-                      ? pw.Image(pw.MemoryImage(logoData), width: 60, height: 60)
-                      : pw.Container(width: 60, height: 60, child: pw.Center(child: pw.Text('Logo'))),
-                    pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.end,
-                      children: [
-                        pw.Text(
-                          'Sepak Takraw Training Report',
-                          style: pw.TextStyle(
-                            fontSize: 16,
-                            fontWeight: pw.FontWeight.bold,
-                          ),
-                        ),
-                        pw.SizedBox(height: 4),
-                        pw.Text(
-                          'Generated on: $reportDate',
-                          style: pw.TextStyle(
-                            fontSize: 10,
-                            color: PdfColors.grey700,
-                          ),
-                        ),
-                      ],
+                    pw.Text(
+                      'Sepak Takraw Training Report',
+                      style: pw.TextStyle(
+                        fontSize: 18,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                    pw.Text(
+                      'Generated on: $reportDate',
+                      style: pw.TextStyle(
+                        fontSize: 10,
+                        color: PdfColors.grey700,
+                      ),
                     ),
                   ],
                 ),
@@ -662,7 +646,9 @@ class _GenerateReportPageState extends State<GenerateReportPage> {
                           
                           String performance = '';
                           if (record['recordType'] == 'Balance Training') {
-                            performance = '${record['score'] ?? 'N/A'}/10';
+                            // CHANGED: Show juggling count instead of score/10
+                            int jugglingCount = record['jugglingCount'] ?? record['score'] ?? 0;
+                            performance = '$jugglingCount juggles';
                           } else if (record['recordType'] == 'Spike Training') {
                             double successRate = record['successRate'] ?? 0.0;
                             performance = '${(successRate * 100).toStringAsFixed(1)}%';
@@ -690,7 +676,7 @@ class _GenerateReportPageState extends State<GenerateReportPage> {
                               ),
                             ],
                           );
-                        }).toList(),
+                        }),
                       ],
                     ),
                     
@@ -761,13 +747,13 @@ class _GenerateReportPageState extends State<GenerateReportPage> {
     int spikeCount = 0;
     int staminaCount = 0;
     
-    // Performance metrics
-    double bestBalanceScore = 0;
-    double avgBalanceScore = 0;
+    // Performance metrics - UPDATED for juggling count
+    int bestJugglingCount = 0; // CHANGED: From double to int
+    double avgJugglingCount = 0; // CHANGED: Represents average juggling count
     double bestSpikeRate = 0;
     double avgSpikeRate = 0;
     String bestStaminaTime = '00:00.0';
-    double balanceTrend = 0;
+    double balanceTrend = 0; // CHANGED: Now represents juggling count trend
     double spikeTrend = 0;
     double staminaTrend = 0;
     
@@ -776,9 +762,10 @@ class _GenerateReportPageState extends State<GenerateReportPage> {
       
       if (recordType == 'Balance Training') {
         balanceCount++;
-        int score = record['score'] ?? 0;
-        avgBalanceScore += score;
-        if (score > bestBalanceScore) bestBalanceScore = score.toDouble();
+        // CHANGED: Use juggling count instead of score
+        int jugglingCount = record['jugglingCount'] ?? record['score'] ?? 0;
+        avgJugglingCount += jugglingCount;
+        if (jugglingCount > bestJugglingCount) bestJugglingCount = jugglingCount;
       } 
       else if (recordType == 'Spike Training') {
         spikeCount++;
@@ -798,14 +785,14 @@ class _GenerateReportPageState extends State<GenerateReportPage> {
     }
     
     // Calculate averages
-    if (balanceCount > 0) avgBalanceScore /= balanceCount;
+    if (balanceCount > 0) avgJugglingCount /= balanceCount; // CHANGED: Now calculates average juggling count
     if (spikeCount > 0) avgSpikeRate /= spikeCount;
     
     // Calculate performance trends (if at least 2 records)
     if (balanceCount >= 2) {
       balanceTrend = _calculatePerformanceTrend(
         _studentRecords.where((r) => r['recordType'] == 'Balance Training').toList(),
-        (r) => (r['score'] ?? 0).toDouble(),
+        (r) => (r['jugglingCount'] ?? r['score'] ?? 0).toDouble(), // CHANGED: Use juggling count
       );
     }
     
@@ -831,8 +818,8 @@ class _GenerateReportPageState extends State<GenerateReportPage> {
       'balanceCount': balanceCount,
       'spikeCount': spikeCount,
       'staminaCount': staminaCount,
-      'bestBalanceScore': bestBalanceScore,
-      'avgBalanceScore': avgBalanceScore,
+      'bestJugglingCount': bestJugglingCount, // CHANGED: From bestBalanceScore
+      'avgJugglingCount': avgJugglingCount, // CHANGED: From avgBalanceScore
       'bestSpikeRate': bestSpikeRate,
       'avgSpikeRate': avgSpikeRate,
       'bestStaminaTime': bestStaminaTime,
@@ -967,19 +954,19 @@ class _GenerateReportPageState extends State<GenerateReportPage> {
     analysis.add('Overall Summary:');
     analysis.add('- Completed $totalTrainings training sessions');
     
-    // Balance analysis
+    // Balance analysis - UPDATED for juggling count
     if (data['balanceCount'] > 0) {
-      analysis.add('\nBalance Training:');
+      analysis.add('\nBalance Training (Ball Juggling):'); // CHANGED title
       analysis.add('- Completed ${data['balanceCount']} balance training sessions');
-      analysis.add('- Best score: ${(data['bestBalanceScore'] as double).toStringAsFixed(1)}/10');
-      analysis.add('- Average score: ${(data['avgBalanceScore'] as double).toStringAsFixed(1)}/10');
+      analysis.add('- Best juggling count: ${data['bestJugglingCount']} juggles'); // CHANGED
+      analysis.add('- Average juggling count: ${(data['avgJugglingCount'] as double).toStringAsFixed(1)} juggles'); // CHANGED
       
       if (data['balanceTrend'] > 0) {
-        analysis.add('- Balance performance is improving (+${(data['balanceTrend'] as double).toStringAsFixed(1)} points)');
+        analysis.add('- Juggling performance is improving (+${(data['balanceTrend'] as double).toStringAsFixed(1)} juggles)'); // CHANGED
       } else if (data['balanceTrend'] < 0) {
-        analysis.add('- Balance performance has declined (${(data['balanceTrend'] as double).toStringAsFixed(1)} points)');
+        analysis.add('- Juggling performance has declined (${(data['balanceTrend'] as double).toStringAsFixed(1)} juggles)'); // CHANGED
       } else {
-        analysis.add('- Balance performance has remained consistent');
+        analysis.add('- Juggling performance has remained consistent'); // CHANGED
       }
     }
     
@@ -1098,7 +1085,7 @@ class _GenerateReportPageState extends State<GenerateReportPage> {
                   
                   // Show student data and report preview if a student is selected
                   if (_selectedStudentId != null && !_isLoading) ...[
-                    // Training data summary
+                    // Training data summary - UPDATED to show juggling count
                     Text(
                       'Training Data Summary',
                       style: TextStyle(
@@ -1120,7 +1107,7 @@ class _GenerateReportPageState extends State<GenerateReportPage> {
                         children: [
                           Text('Total Records: ${_studentRecords.length}'),
                           Text(
-                            'Balance Training: ${_studentRecords.where((r) => r['recordType'] == 'Balance Training').length} sessions',
+                            'Balance Training (Juggling): ${_studentRecords.where((r) => r['recordType'] == 'Balance Training').length} sessions', // CHANGED
                           ),
                           Text(
                             'Spike Training: ${_studentRecords.where((r) => r['recordType'] == 'Spike Training').length} sessions',

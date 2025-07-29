@@ -6,9 +6,9 @@ class StudentScheduleListScreen extends StatefulWidget {
   final String userId;
 
   const StudentScheduleListScreen({
-    Key? key,
+    super.key,
     required this.userId,
-  }) : super(key: key);
+  });
 
   @override
   _StudentScheduleListScreenState createState() => _StudentScheduleListScreenState();
@@ -16,7 +16,7 @@ class StudentScheduleListScreen extends StatefulWidget {
 
 class _StudentScheduleListScreenState extends State<StudentScheduleListScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  bool _isLoading = true;
+  final bool _isLoading = true;
 
   @override
   Widget build(BuildContext context) {
@@ -24,31 +24,19 @@ class _StudentScheduleListScreenState extends State<StudentScheduleListScreen> {
       backgroundColor: Color(0xFFF5F7FA),
       appBar: AppBar(
         title: Text('Training Schedule'),
-        backgroundColor: Color(0xFF3B82F6), // CHANGED: Blue theme matching SCHEDULE card
+        backgroundColor: Color(0xFF3B82F6),
         foregroundColor: Colors.white,
       ),
       body: Column(
         children: [
-          // Header section matching student home screen style
-          Container(
+          // Header section - removed frame container
+          Padding(
             padding: EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: [
-                BoxShadow(
-                  color: Color(0xFF3B82F6).withOpacity(0.1), // CHANGED: Blue theme
-                  blurRadius: 15,
-                  offset: Offset(0, 8),
-                ),
-              ],
-            ),
-            margin: EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '🏆 Upcoming Sessions',
+                  'Upcoming Sessions',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
@@ -78,7 +66,7 @@ class _StudentScheduleListScreenState extends State<StudentScheduleListScreen> {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return Center(
                     child: CircularProgressIndicator(
-                      color: Color(0xFF3B82F6), // CHANGED: Blue theme
+                      color: Color(0xFF3B82F6),
                     ),
                   );
                 }
@@ -126,7 +114,7 @@ class _StudentScheduleListScreenState extends State<StudentScheduleListScreen> {
                           margin: EdgeInsets.only(bottom: 12),
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
-                              colors: [Color(0xFF3B82F6), Color(0xFF1E40AF)], // CHANGED: Blue gradient
+                              colors: [Color(0xFF3B82F6), Color(0xFF1E40AF)],
                             ),
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -179,13 +167,13 @@ class _StudentScheduleListScreenState extends State<StudentScheduleListScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isUpcoming ? Color(0xFF3B82F6).withOpacity(0.3) : Colors.grey.withOpacity(0.2), // CHANGED: Blue theme
+          color: isUpcoming ? Color(0xFF3B82F6).withOpacity(0.3) : Colors.grey.withOpacity(0.2),
           width: 2,
         ),
         boxShadow: [
           BoxShadow(
             color: isUpcoming 
-                ? Color(0xFF3B82F6).withOpacity(0.15) // CHANGED: Blue theme
+                ? Color(0xFF3B82F6).withOpacity(0.15)
                 : Colors.grey.withOpacity(0.1),
             blurRadius: 15,
             offset: Offset(0, 8),
@@ -202,7 +190,7 @@ class _StudentScheduleListScreenState extends State<StudentScheduleListScreen> {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: isUpcoming 
-                        ? [Color(0xFF3B82F6), Color(0xFF1E40AF)] // CHANGED: Blue gradient
+                        ? [Color(0xFF3B82F6), Color(0xFF1E40AF)]
                         : [Colors.grey.shade400, Colors.grey.shade500],
                   ),
                   borderRadius: BorderRadius.circular(12),
@@ -245,13 +233,13 @@ class _StudentScheduleListScreenState extends State<StudentScheduleListScreen> {
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Color(0xFF3B82F6).withOpacity(0.1), // CHANGED: Blue theme
+                    color: Color(0xFF3B82F6).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     'Upcoming',
                     style: TextStyle(
-                      color: Color(0xFF3B82F6), // CHANGED: Blue theme
+                      color: Color(0xFF3B82F6),
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -265,7 +253,7 @@ class _StudentScheduleListScreenState extends State<StudentScheduleListScreen> {
               Icon(
                 Icons.access_time,
                 size: 16,
-                color: Color(0xFF3B82F6), // CHANGED: Blue theme
+                color: Color(0xFF3B82F6),
               ),
               SizedBox(width: 8),
               Text(
@@ -282,7 +270,7 @@ class _StudentScheduleListScreenState extends State<StudentScheduleListScreen> {
                 child: Container(
                   padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Color(0xFF3B82F6).withOpacity(0.1), // CHANGED: Blue theme
+                    color: Color(0xFF3B82F6).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -291,7 +279,7 @@ class _StudentScheduleListScreenState extends State<StudentScheduleListScreen> {
                       Text(
                         'View Details',
                         style: TextStyle(
-                          color: Color(0xFF3B82F6), // CHANGED: Blue theme
+                          color: Color(0xFF3B82F6),
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -300,7 +288,7 @@ class _StudentScheduleListScreenState extends State<StudentScheduleListScreen> {
                       Icon(
                         Icons.arrow_forward_ios,
                         size: 12,
-                        color: Color(0xFF3B82F6), // CHANGED: Blue theme
+                        color: Color(0xFF3B82F6),
                       ),
                     ],
                   ),
@@ -321,13 +309,13 @@ class _StudentScheduleListScreenState extends State<StudentScheduleListScreen> {
           Container(
             padding: EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Color(0xFF3B82F6).withOpacity(0.1), // CHANGED: Blue theme
+              color: Color(0xFF3B82F6).withOpacity(0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.calendar_today,
               size: 60,
-              color: Color(0xFF3B82F6), // CHANGED: Blue theme
+              color: Color(0xFF3B82F6),
             ),
           ),
           SizedBox(height: 16),
@@ -426,7 +414,7 @@ class _StudentScheduleListScreenState extends State<StudentScheduleListScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('Session added to your calendar'),
-                        backgroundColor: Color(0xFF3B82F6), // CHANGED: Blue theme
+                        backgroundColor: Color(0xFF3B82F6),
                       ),
                     );
                     Navigator.pop(context);
@@ -434,7 +422,7 @@ class _StudentScheduleListScreenState extends State<StudentScheduleListScreen> {
                   icon: Icon(Icons.calendar_month, size: 18),
                   label: Text('Add to My Calendar'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xFF3B82F6), // CHANGED: Blue theme
+                    backgroundColor: Color(0xFF3B82F6),
                     foregroundColor: Colors.white,
                     padding: EdgeInsets.symmetric(vertical: 15),
                     shape: RoundedRectangleBorder(
@@ -458,12 +446,12 @@ class _StudentScheduleListScreenState extends State<StudentScheduleListScreen> {
         Container(
           padding: EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Color(0xFF3B82F6).withOpacity(0.1), // CHANGED: Blue theme
+            color: Color(0xFF3B82F6).withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
             icon,
-            color: Color(0xFF3B82F6), // CHANGED: Blue theme
+            color: Color(0xFF3B82F6),
             size: 16,
           ),
         ),

@@ -8,10 +8,10 @@ class TrainingRecordViewTeacher extends StatefulWidget {
   final String coachName;
 
   const TrainingRecordViewTeacher({
-    Key? key,
+    super.key,
     required this.coachId,
     required this.coachName,
-  }) : super(key: key);
+  });
 
   @override
   _TrainingRecordViewTeacherState createState() => _TrainingRecordViewTeacherState();
@@ -22,7 +22,7 @@ class _TrainingRecordViewTeacherState extends State<TrainingRecordViewTeacher> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _trainingRecords = [];
   Map<String, String> _studentNames = {};
-  Map<String, bool> _showCharts = {};
+  final Map<String, bool> _showCharts = {};
   
   @override
   void initState() {
@@ -66,7 +66,7 @@ class _TrainingRecordViewTeacherState extends State<TrainingRecordViewTeacher> {
         });
       }
       
-      // Get balance records
+      // Get balance records - UPDATED for juggling count
       QuerySnapshot balanceSnapshot = await _firestore
           .collection('balance_records')
           .where('coachId', isEqualTo: widget.coachId)
@@ -77,10 +77,15 @@ class _TrainingRecordViewTeacherState extends State<TrainingRecordViewTeacher> {
         if (data.containsKey('studentId')) {
           studentIds.add(data['studentId']);
         }
+        
+        // CHANGED: Use juggling count instead of balance score
+        int jugglingCount = data['jugglingCount'] ?? data['balanceScore'] ?? 0;
+        
         allRecords.add({
           'id': doc.id,
           'recordType': 'Balance Training',
-          'score': data['balanceScore'] ?? 0,
+          'jugglingCount': jugglingCount, // ADDED: Store juggling count
+          'score': jugglingCount, // For compatibility with existing chart code
           ...data,
         });
       }
@@ -204,168 +209,432 @@ class _TrainingRecordViewTeacherState extends State<TrainingRecordViewTeacher> {
       (_studentNames[a] ?? '').compareTo(_studentNames[b] ?? ''));
     
     return Scaffold(
+      // ENHANCED: Gradient app bar
       appBar: AppBar(
-        title: Text('Training Records'),
-        backgroundColor: Colors.blue,
+        title: Text(
+          'Training Records',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            fontSize: 20,
+          ),
+        ),
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF1E40AF),
+                Color(0xFF3B82F6),
+                Color(0xFF60A5FA),
+              ],
+            ),
+          ),
+        ),
+        elevation: 0,
+        iconTheme: IconThemeData(color: Colors.white),
       ),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator())
-          : _trainingRecords.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.sports_score, size: 80, color: Colors.grey.shade300),
-                      SizedBox(height: 16),
-                      Text(
-                        'No training records found',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        'Start a training session to record player performance',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade500,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  itemCount: sortedStudentIds.length,
-                  itemBuilder: (context, index) {
-                    final studentId = sortedStudentIds[index];
-                    final studentName = _studentNames[studentId] ?? 'Unknown Student';
-                    final studentRecords = recordsByStudent[studentId] ?? [];
-                    
-                    // Sort records by date (newest first)
-                    studentRecords.sort((a, b) {
-                      final aTimestamp = a['timestamp'] as Timestamp?;
-                      final bTimestamp = b['timestamp'] as Timestamp?;
-                      if (aTimestamp == null || bTimestamp == null) return 0;
-                      return bTimestamp.compareTo(aTimestamp);
-                    });
-                    
-                    return Card(
-                      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: ExpansionTile(
-                        title: Text(
-                          studentName,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
+      // ENHANCED: Gradient background
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF3B82F6).withOpacity(0.1),
+              Colors.white,
+            ],
+          ),
+        ),
+        child: _isLoading
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // ENHANCED: Beautiful loading spinner
+                    Container(
+                      padding: EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 20,
+                            offset: Offset(0, 10),
                           ),
-                        ),
-                        subtitle: Text('${studentRecords.length} training records'),
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.blue.shade100,
-                          child: Icon(
-                            Icons.person,
-                            color: Colors.blue,
-                          ),
-                        ),
-                        onExpansionChanged: (isExpanded) {
-                          if (isExpanded) {
-                            setState(() {
-                              _showCharts[studentId] = false;
-                            });
-                          }
-                        },
-                        children: [
-                          // Student summary statistics
-                          Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Training type summaries
-                                _buildStudentSummary(studentRecords),
-                                SizedBox(height: 16),
-                                
-                                // Toggle charts button
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    ElevatedButton.icon(
-                                      icon: Icon(_showCharts[studentId] == true 
-                                          ? Icons.visibility_off 
-                                          : Icons.bar_chart),
-                                      label: Text(_showCharts[studentId] == true 
-                                          ? 'Hide Charts' 
-                                          : 'Show Performance Charts'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.blue,
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                      ),
-                                      onPressed: () {
-                                        setState(() {
-                                          _showCharts[studentId] = !(_showCharts[studentId] ?? false);
-                                        });
-                                      },
-                                    ),
-                                  ],
-                                ),
-                                SizedBox(height: 16),
-                                
-                                // Performance charts (when toggled)
-                                if (_showCharts[studentId] == true)
-                                  Column(
-                                    children: [
-                                      _buildPerformanceCharts(studentRecords),
-                                      SizedBox(height: 16),
-                                    ],
-                                  ),
-                                
-                                // Record list header
-                                Text(
-                                  'Training History',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Divider(),
-                              ],
-                            ),
-                          ),
-                          
-                          // Individual training records
-                          ...studentRecords.map((record) {
-                            final timestamp = record['timestamp'] as Timestamp?;
-                            final dateTime = timestamp?.toDate() ?? DateTime.now();
-                            final formattedDate = DateFormat('MMM d, yyyy - h:mm a').format(dateTime);
-                            
-                            return ListTile(
-                              contentPadding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                              title: Text(
-                                record['drillName'] ?? record['recordType'] ?? 'Unknown Drill',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              subtitle: Text(formattedDate),
-                              trailing: _buildTrailingWidget(record),
-                              onTap: () {
-                                _showRecordDetails(context, record, studentName);
-                              },
-                            );
-                          }).toList(),
-                          SizedBox(height: 8),
                         ],
                       ),
-                    );
-                  },
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF3B82F6)),
+                        strokeWidth: 3,
+                      ),
+                    ),
+                    SizedBox(height: 24),
+                    Text(
+                      'Loading training records...',
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
+              )
+            : _trainingRecords.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // ENHANCED: Beautiful empty state
+                        Container(
+                          padding: EdgeInsets.all(40),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 20,
+                                offset: Offset(0, 10),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Colors.grey.shade200,
+                                      Colors.grey.shade300,
+                                    ],
+                                  ),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.sports_score, 
+                                  size: 60, 
+                                  color: Colors.grey.shade500,
+                                ),
+                              ),
+                              SizedBox(height: 20),
+                              Text(
+                                'No training records found',
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                'Start a training session to record\nplayer performance',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.grey.shade500,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: EdgeInsets.all(16),
+                    itemCount: sortedStudentIds.length,
+                    itemBuilder: (context, index) {
+                      final studentId = sortedStudentIds[index];
+                      final studentName = _studentNames[studentId] ?? 'Unknown Student';
+                      final studentRecords = recordsByStudent[studentId] ?? [];
+                      
+                      // Sort records by date (newest first)
+                      studentRecords.sort((a, b) {
+                        final aTimestamp = a['timestamp'] as Timestamp?;
+                        final bTimestamp = b['timestamp'] as Timestamp?;
+                        if (aTimestamp == null || bTimestamp == null) return 0;
+                        return bTimestamp.compareTo(aTimestamp);
+                      });
+                      
+                      return Container(
+                        margin: EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 20,
+                              offset: Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: Theme(
+                          data: Theme.of(context).copyWith(
+                            dividerColor: Colors.transparent,
+                          ),
+                          child: ExpansionTile(
+                            tilePadding: EdgeInsets.all(20),
+                            childrenPadding: EdgeInsets.zero,
+                            title: Text(
+                              studentName,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                                color: Color(0xFF1F2937),
+                              ),
+                            ),
+                            subtitle: Container(
+                              margin: EdgeInsets.only(top: 8),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          Color(0xFF3B82F6).withOpacity(0.1),
+                                          Color(0xFF1E40AF).withOpacity(0.1),
+                                        ],
+                                      ),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: Color(0xFF3B82F6).withOpacity(0.3),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      '${studentRecords.length} training records',
+                                      style: TextStyle(
+                                        color: Color(0xFF3B82F6),
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            leading: Container(
+                              padding: EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Color(0xFF3B82F6),
+                                    Color(0xFF1E40AF),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(15),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Color(0xFF3B82F6).withOpacity(0.3),
+                                    blurRadius: 10,
+                                    offset: Offset(0, 5),
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                Icons.person,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                            ),
+                            onExpansionChanged: (isExpanded) {
+                              if (isExpanded) {
+                                setState(() {
+                                  _showCharts[studentId] = false;
+                                });
+                              }
+                            },
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Colors.grey.shade50,
+                                      Colors.white,
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.only(
+                                    bottomLeft: Radius.circular(20),
+                                    bottomRight: Radius.circular(20),
+                                  ),
+                                ),
+                                child: Column(
+                                  children: [
+                                    // Student summary statistics
+                                    Padding(
+                                      padding: const EdgeInsets.all(20.0),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          // Training type summaries
+                                          _buildStudentSummary(studentRecords),
+                                          SizedBox(height: 20),
+                                          
+                                          // Toggle charts button
+                                          Center(
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                gradient: LinearGradient(
+                                                  colors: [
+                                                    Color(0xFF3B82F6),
+                                                    Color(0xFF1E40AF),
+                                                  ],
+                                                ),
+                                                borderRadius: BorderRadius.circular(12),
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: Color(0xFF3B82F6).withOpacity(0.3),
+                                                    blurRadius: 10,
+                                                    offset: Offset(0, 5),
+                                                  ),
+                                                ],
+                                              ),
+                                              child: ElevatedButton.icon(
+                                                icon: Icon(_showCharts[studentId] == true 
+                                                    ? Icons.visibility_off 
+                                                    : Icons.bar_chart),
+                                                label: Text(_showCharts[studentId] == true 
+                                                    ? 'Hide Charts' 
+                                                    : 'Show Performance Charts'),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: Colors.transparent,
+                                                  foregroundColor: Colors.white,
+                                                  shadowColor: Colors.transparent,
+                                                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius: BorderRadius.circular(12),
+                                                  ),
+                                                ),
+                                                onPressed: () {
+                                                  setState(() {
+                                                    _showCharts[studentId] = !(_showCharts[studentId] ?? false);
+                                                  });
+                                                },
+                                              ),
+                                            ),
+                                          ),
+                                          SizedBox(height: 20),
+                                          
+                                          // Performance charts (when toggled)
+                                          if (_showCharts[studentId] == true)
+                                            Column(
+                                              children: [
+                                                _buildPerformanceCharts(studentRecords),
+                                                SizedBox(height: 20),
+                                              ],
+                                            ),
+                                          
+                                          // Record list header
+                                          Container(
+                                            padding: EdgeInsets.symmetric(vertical: 12),
+                                            child: Row(
+                                              children: [
+                                                Container(
+                                                  padding: EdgeInsets.all(8),
+                                                  decoration: BoxDecoration(
+                                                    gradient: LinearGradient(
+                                                      colors: [
+                                                        Color(0xFF10B981),
+                                                        Color(0xFF059669),
+                                                      ],
+                                                    ),
+                                                    borderRadius: BorderRadius.circular(8),
+                                                  ),
+                                                  child: Icon(
+                                                    Icons.history,
+                                                    color: Colors.white,
+                                                    size: 16,
+                                                  ),
+                                                ),
+                                                SizedBox(width: 12),
+                                                Text(
+                                                  'Training History',
+                                                  style: TextStyle(
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Color(0xFF1F2937),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          Container(
+                                            height: 2,
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                colors: [
+                                                  Color(0xFF3B82F6).withOpacity(0.3),
+                                                  Colors.transparent,
+                                                ],
+                                              ),
+                                              borderRadius: BorderRadius.circular(1),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    
+                                    // Individual training records
+                                    ...studentRecords.map((record) {
+                                      final timestamp = record['timestamp'] as Timestamp?;
+                                      final dateTime = timestamp?.toDate() ?? DateTime.now();
+                                      final formattedDate = DateFormat('MMM d, yyyy - h:mm a').format(dateTime);
+                                      
+                                      return Container(
+                                        margin: EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color: Colors.grey.shade200,
+                                          ),
+                                        ),
+                                        child: ListTile(
+                                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                          title: Text(
+                                            record['drillName'] ?? record['recordType'] ?? 'Unknown Drill',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              color: Color(0xFF1F2937),
+                                            ),
+                                          ),
+                                          subtitle: Container(
+                                            margin: EdgeInsets.only(top: 4),
+                                            child: Text(
+                                              formattedDate,
+                                              style: TextStyle(
+                                                color: Colors.grey.shade600,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ),
+                                          trailing: _buildTrailingWidget(record),
+                                          onTap: () {
+                                            _showRecordDetails(context, record, studentName);
+                                          },
+                                        ),
+                                      );
+                                    }),
+                                    SizedBox(height: 16),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+      ),
     );
   }
   
@@ -376,9 +645,9 @@ class _TrainingRecordViewTeacherState extends State<TrainingRecordViewTeacher> {
     int staminaCount = 0;
     int generalCount = 0;
     
-    // Performance metrics
-    double avgBalanceScore = 0;
-    double bestBalanceScore = 0;
+    // Performance metrics - UPDATED for juggling count
+    double avgJugglingCount = 0;
+    int bestJugglingCount = 0;
     double avgSpikeRate = 0;
     double bestSpikeRate = 0;
     String bestStaminaTime = '00:00.0';
@@ -394,9 +663,10 @@ class _TrainingRecordViewTeacherState extends State<TrainingRecordViewTeacher> {
       if (recordType == 'Balance Training') {
         balanceCount++;
         balanceRecords.add(record);
-        int score = record['score'] ?? 0;
-        avgBalanceScore += score;
-        if (score > bestBalanceScore) bestBalanceScore = score.toDouble();
+        // CHANGED: Use juggling count instead of score
+        int jugglingCount = record['jugglingCount'] ?? record['balanceScore'] ?? 0;
+        avgJugglingCount += jugglingCount;
+        if (jugglingCount > bestJugglingCount) bestJugglingCount = jugglingCount;
       } 
       else if (recordType == 'Spike Training') {
         spikeCount++;
@@ -420,43 +690,69 @@ class _TrainingRecordViewTeacherState extends State<TrainingRecordViewTeacher> {
     }
     
     // Calculate averages
-    if (balanceCount > 0) avgBalanceScore /= balanceCount;
+    if (balanceCount > 0) avgJugglingCount /= balanceCount;
     if (spikeCount > 0) avgSpikeRate /= spikeCount;
     
     // Summary cards
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Performance Summary',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
+        Container(
+          padding: EdgeInsets.symmetric(vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Color(0xFF8B5CF6),
+                      Color(0xFF7C3AED),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.analytics,
+                  color: Colors.white,
+                  size: 16,
+                ),
+              ),
+              SizedBox(width: 12),
+              Text(
+                'Performance Summary',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1F2937),
+                ),
+              ),
+            ],
           ),
         ),
         SizedBox(height: 12),
         
-        // Balance summary (if applicable)
+        // Balance summary (if applicable) - UPDATED for juggling count
         if (balanceCount > 0) 
           _buildSummaryCard(
             'Balance',
-            '${balanceCount} sessions',
+            '$balanceCount sessions',
             [
-              {'label': 'Best Score', 'value': '${bestBalanceScore.toInt()}/10'},
-              {'label': 'Avg Score', 'value': '${avgBalanceScore.toStringAsFixed(1)}/10'},
-              {'label': 'Latest', 'value': '${balanceRecords.first['score'] ?? 0}/10'},
+              {'label': 'Best Juggles', 'value': '$bestJugglingCount'}, // CHANGED
+              {'label': 'Avg Juggles', 'value': avgJugglingCount.toStringAsFixed(1)}, // CHANGED
+              {'label': 'Latest', 'value': '${balanceRecords.first['jugglingCount'] ?? balanceRecords.first['balanceScore'] ?? 0}'}, // CHANGED
             ],
             Colors.green,
-            Icons.balance
+            Icons.sports_handball // CHANGED icon
           ),
           
-        if (balanceCount > 0) SizedBox(height: 8),
+        if (balanceCount > 0) SizedBox(height: 12),
           
         // Spike summary (if applicable)
         if (spikeCount > 0) 
           _buildSummaryCard(
             'Spike',
-            '${spikeCount} sessions',
+            '$spikeCount sessions',
             [
               {'label': 'Best Rate', 'value': '${(bestSpikeRate * 100).toStringAsFixed(1)}%'},
               {'label': 'Avg Rate', 'value': '${(avgSpikeRate * 100).toStringAsFixed(1)}%'},
@@ -466,17 +762,17 @@ class _TrainingRecordViewTeacherState extends State<TrainingRecordViewTeacher> {
             Icons.sports_volleyball
           ),
           
-        if (spikeCount > 0) SizedBox(height: 8),
+        if (spikeCount > 0) SizedBox(height: 12),
           
         // Stamina summary (if applicable)
         if (staminaCount > 0) 
           _buildSummaryCard(
             'Stamina',
-            '${staminaCount} sessions',
+            '$staminaCount sessions',
             [
               {'label': 'Best Time', 'value': bestStaminaTime},
               {'label': 'Latest', 'value': staminaRecords.first['time'] ?? '00:00.0'},
-              {'label': 'Total', 'value': '${staminaCount} runs'},
+              {'label': 'Total', 'value': '$staminaCount runs'},
             ],
             Colors.blue,
             Icons.timer
@@ -492,42 +788,84 @@ class _TrainingRecordViewTeacherState extends State<TrainingRecordViewTeacher> {
     Color color,
     IconData icon
   ) {
-    return Card(
-      elevation: 2,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: BorderSide(color: color.withOpacity(0.5), width: 1),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            color.withOpacity(0.1),
+            color.withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: color.withOpacity(0.3),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.1),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(icon, color: color, size: 20),
-                SizedBox(width: 8),
-                Text(
-                  '$title Training',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [color, color.withOpacity(0.8)],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
                   ),
+                  child: Icon(icon, color: Colors.white, size: 20),
                 ),
-                Spacer(),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 12,
+                SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '$title Training',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Color(0xFF1F2937),
+                        ),
+                      ),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-            SizedBox(height: 8),
-            Divider(height: 1, color: color.withOpacity(0.2)),
-            SizedBox(height: 12),
+            SizedBox(height: 16),
+            Container(
+              height: 1,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    color.withOpacity(0.3),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: stats.map((stat) => _buildStatItem(
@@ -545,20 +883,28 @@ class _TrainingRecordViewTeacherState extends State<TrainingRecordViewTeacher> {
   Widget _buildStatItem(String label, String value, Color color) {
     return Column(
       children: [
-        Text(
-          value,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-            color: color,
+        Container(
+          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            value,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: color,
+            ),
           ),
         ),
-        SizedBox(height: 4),
+        SizedBox(height: 6),
         Text(
           label,
           style: TextStyle(
             fontSize: 12,
             color: Colors.grey.shade600,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ],
@@ -592,75 +938,177 @@ class _TrainingRecordViewTeacherState extends State<TrainingRecordViewTeacher> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Balance chart
+        // Balance chart - UPDATED for juggling count
         if (balanceRecords.length > 1)
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Balance Score Progress',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Container(
-                height: 200,
-                child: _buildLineChart(
-                  balanceRecords,
-                  (record) => (record['score'] ?? 0).toDouble(),
-                  Colors.green,
-                  0,
-                  10,
+          Container(
+            margin: EdgeInsets.only(bottom: 24),
+            padding: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.green.withOpacity(0.3)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.green.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
                 ),
-              ),
-              SizedBox(height: 24),
-            ],
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.green, Colors.green.shade700],
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.sports_handball, color: Colors.white, size: 16),
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'Juggling Count Progress', // CHANGED title
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1F2937),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 16),
+                SizedBox(
+                  height: 200,
+                  child: _buildLineChart(
+                    balanceRecords,
+                    (record) => (record['jugglingCount'] ?? record['balanceScore'] ?? 0).toDouble(), // CHANGED to use juggling count
+                    Colors.green,
+                    0,
+                    null, // Auto max for juggling count
+                  ),
+                ),
+              ],
+            ),
           ),
           
         // Spike chart
         if (spikeRecords.length > 1)
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Spike Success Rate',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Container(
-                height: 200,
-                child: _buildLineChart(
-                  spikeRecords,
-                  (record) => (record['successRate'] ?? 0.0).toDouble(),
-                  Colors.purple,
-                  0,
-                  1.0,
-                  isPercentage: true
+          Container(
+            margin: EdgeInsets.only(bottom: 24),
+            padding: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.purple.withOpacity(0.3)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.purple.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
                 ),
-              ),
-              SizedBox(height: 24),
-            ],
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.purple, Colors.purple.shade700],
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.sports_volleyball, color: Colors.white, size: 16),
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'Spike Success Rate',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1F2937),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 16),
+                SizedBox(
+                  height: 200,
+                  child: _buildLineChart(
+                    spikeRecords,
+                    (record) => (record['successRate'] ?? 0.0).toDouble(),
+                    Colors.purple,
+                    0,
+                    1.0,
+                    isPercentage: true
+                  ),
+                ),
+              ],
+            ),
           ),
           
         // Stamina chart
         if (staminaRecords.length > 1)
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Stamina Time Progress',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Container(
-                height: 200,
-                child: _buildLineChart(
-                  staminaRecords,
-                  (record) => (record['totalSeconds'] ?? 0).toDouble(),
-                  Colors.blue,
-                  0,
-                  null, // Auto max
-                  reverse: true, // Lower is better
-                  timeFormat: true
+          Container(
+            padding: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.blue.withOpacity(0.3)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.blue.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
                 ),
-              ),
-            ],
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.blue, Colors.blue.shade700],
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.timer, color: Colors.white, size: 16),
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'Stamina Time Progress',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1F2937),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 16),
+                SizedBox(
+                  height: 200,
+                  child: _buildLineChart(
+                    staminaRecords,
+                    (record) => (record['totalSeconds'] ?? 0).toDouble(),
+                    Colors.blue,
+                    0,
+                    null, // Auto max
+                    reverse: true, // Lower is better
+                    timeFormat: true
+                  ),
+                ),
+              ],
+            ),
           ),
       ],
     );
@@ -691,7 +1139,19 @@ class _TrainingRecordViewTeacherState extends State<TrainingRecordViewTeacher> {
         gridData: FlGridData(
           show: true,
           drawVerticalLine: true,
-          horizontalInterval: timeFormat ? 60 : (maxY! > 10 ? 30 : 1),
+          horizontalInterval: timeFormat ? 60 : (maxY > 10 ? 30 : 1),
+          getDrawingHorizontalLine: (value) {
+            return FlLine(
+              color: Colors.grey.shade300,
+              strokeWidth: 1,
+            );
+          },
+          getDrawingVerticalLine: (value) {
+            return FlLine(
+              color: Colors.grey.shade300,
+              strokeWidth: 1,
+            );
+          },
         ),
         titlesData: FlTitlesData(
           leftTitles: AxisTitles(
@@ -706,7 +1166,7 @@ class _TrainingRecordViewTeacherState extends State<TrainingRecordViewTeacher> {
                 } else if (isPercentage) {
                   return Text('${(value * 100).toInt()}%');
                 } else {
-                  return Text('${value.toInt()}');
+                  return Text('${value.toInt()}'); // CHANGED: Show as integer for juggling count
                 }
               },
             ),
@@ -738,7 +1198,7 @@ class _TrainingRecordViewTeacherState extends State<TrainingRecordViewTeacher> {
         ),
         borderData: FlBorderData(
           show: true,
-          border: Border.all(color: const Color(0xff37434d), width: 1),
+          border: Border.all(color: Colors.grey.shade400, width: 1),
         ),
         minX: 0,
         maxX: records.length.toDouble() - 1,
@@ -751,11 +1211,33 @@ class _TrainingRecordViewTeacherState extends State<TrainingRecordViewTeacher> {
               (i) => FlSpot(i.toDouble(), getValue(records[i])),
             ),
             isCurved: true,
-            color: color,
-            barWidth: 3,
+            gradient: LinearGradient(
+              colors: [color.withOpacity(0.8), color],
+            ),
+            barWidth: 4,
             isStrokeCapRound: true,
-            dotData: FlDotData(show: true),
-            belowBarData: BarAreaData(show: true, color: color.withOpacity(0.2)),
+            dotData: FlDotData(
+              show: true,
+              getDotPainter: (spot, percent, barData, index) {
+                return FlDotCirclePainter(
+                  radius: 6,
+                  color: Colors.white,
+                  strokeWidth: 3,
+                  strokeColor: color,
+                );
+              },
+            ),
+            belowBarData: BarAreaData(
+              show: true, 
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  color.withOpacity(0.3),
+                  color.withOpacity(0.1),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -766,17 +1248,32 @@ class _TrainingRecordViewTeacherState extends State<TrainingRecordViewTeacher> {
     String recordType = record['recordType'] ?? '';
     
     if (recordType == 'Balance Training') {
+      // CHANGED: Show juggling count instead of score/10
+      int jugglingCount = record['jugglingCount'] ?? record['balanceScore'] ?? 0;
       return Container(
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: _getScoreColor(record['score']),
-          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            colors: [
+              _getJugglingCountColor(jugglingCount),
+              _getJugglingCountColor(jugglingCount).withOpacity(0.8),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: _getJugglingCountColor(jugglingCount).withOpacity(0.3),
+              blurRadius: 8,
+              offset: Offset(0, 2),
+            ),
+          ],
         ),
         child: Text(
-          '${record['score']}/10',
+          '$jugglingCount juggles', // CHANGED display format
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
+            fontSize: 12,
           ),
         ),
       );
@@ -784,52 +1281,100 @@ class _TrainingRecordViewTeacherState extends State<TrainingRecordViewTeacher> {
     else if (recordType == 'Spike Training') {
       double successRate = record['successRate'] ?? 0.0;
       return Container(
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: _getSpikeRateColor(successRate),
-          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            colors: [
+              _getSpikeRateColor(successRate),
+              _getSpikeRateColor(successRate).withOpacity(0.8),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: _getSpikeRateColor(successRate).withOpacity(0.3),
+              blurRadius: 8,
+              offset: Offset(0, 2),
+            ),
+          ],
         ),
         child: Text(
           '${(successRate * 100).toStringAsFixed(1)}%',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
+            fontSize: 12,
           ),
         ),
       );
     }
     else if (recordType == 'Stamina Training') {
       return Container(
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.blue.shade700,
-          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            colors: [
+              Colors.blue.shade700,
+              Colors.blue.shade600,
+            ],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.blue.withOpacity(0.3),
+              blurRadius: 8,
+              offset: Offset(0, 2),
+            ),
+          ],
         ),
         child: Text(
           record['time'] ?? '00:00',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
+            fontSize: 12,
           ),
         ),
       );
     }
     else {
       return Container(
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: _getScoreColor(record['score']),
-          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            colors: [
+              _getScoreColor(record['score']),
+              _getScoreColor(record['score']).withOpacity(0.8),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: _getScoreColor(record['score']).withOpacity(0.3),
+              blurRadius: 8,
+              offset: Offset(0, 2),
+            ),
+          ],
         ),
         child: Text(
           '${record['score'] ?? 'N/A'}/10',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
+            fontSize: 12,
           ),
         ),
       );
     }
+  }
+
+  // ADDED: New color function for juggling count
+  Color _getJugglingCountColor(int count) {
+    if (count >= 50) return Colors.green;
+    if (count >= 30) return Colors.lightGreen;
+    if (count >= 20) return Colors.orange;
+    if (count >= 10) return Colors.deepOrange;
+    return Colors.red;
   }
 
   Color _getScoreColor(dynamic score) {
@@ -859,83 +1404,208 @@ class _TrainingRecordViewTeacherState extends State<TrainingRecordViewTeacher> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) {
         return Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.white,
+                Colors.grey.shade50,
+              ],
+            ),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 20,
+                offset: Offset(0, -10),
+              ),
+            ],
+          ),
           padding: EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                'Training Record Details',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
+              // Handle bar
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
               SizedBox(height: 20),
-              _buildDetailRow('Student', studentName),
-              _buildDetailRow('Training Type', record['drillName'] ?? record['recordType'] ?? 'Unknown'),
-              _buildDetailRow('Date & Time', formattedDate),
-              _buildDetailRow('Week', record['selectedWeek']?.toString() ?? record['weekTimestamp']?.toString() ?? 'N/A'),
               
-              // Type-specific details
-              if (record['recordType'] == 'Balance Training')
-                _buildDetailRow('Score', '${record['score'] ?? 'N/A'}/10'),
+              Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Color(0xFF3B82F6),
+                          Color(0xFF1E40AF),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.info,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Text(
+                    'Training Record Details',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1F2937),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 24),
               
-              // For spike training, show additional details
-              if (record['recordType'] == 'Spike Training') ...[
-                _buildDetailRow('Success Rate', 
-                  '${(record['successRate'] * 100).toStringAsFixed(1)}%'),
-                _buildDetailRow('Attempts', 
-                  '${record['successfulSpikes'] ?? 0}/${record['totalAttempts'] ?? 0} spikes'),
-              ],
-              
-              // For balance training, show additional details
-              if (record['recordType'] == 'Balance Training')
-                _buildDetailRow('Attempt', '${record['attempt'] ?? 1}'),
-              
-              // For stamina training, show time
-              if (record['recordType'] == 'Stamina Training')
-                _buildDetailRow('Time', record['time'] ?? 'N/A'),
-              
-              SizedBox(height: 16),
-              Text(
-                'Coach Notes:',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+              Container(
+                padding: EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade200),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    _buildDetailRow('Student', studentName),
+                    _buildDetailRow('Training Type', record['drillName'] ?? record['recordType'] ?? 'Unknown'),
+                    _buildDetailRow('Date & Time', formattedDate),
+                    _buildDetailRow('Week', record['selectedWeek']?.toString() ?? record['weekTimestamp']?.toString() ?? 'N/A'),
+                    
+                    // Type-specific details - UPDATED for balance training
+                    if (record['recordType'] == 'Balance Training') ...[
+                      _buildDetailRow('Juggling Count', '${record['jugglingCount'] ?? record['balanceScore'] ?? 0} juggles'), // CHANGED
+                    ],
+                    
+                    // For spike training, show additional details
+                    if (record['recordType'] == 'Spike Training') ...[
+                      _buildDetailRow('Success Rate', 
+                        '${(record['successRate'] * 100).toStringAsFixed(1)}%'),
+                      _buildDetailRow('Attempts', 
+                        '${record['successfulSpikes'] ?? 0}/${record['totalAttempts'] ?? 0} spikes'),
+                    ],
+                    
+                    // For stamina training, show time
+                    if (record['recordType'] == 'Stamina Training')
+                      _buildDetailRow('Time', record['time'] ?? 'N/A'),
+                  ],
                 ),
               ),
-              SizedBox(height: 8),
+              
+              SizedBox(height: 20),
+              
               Container(
-                padding: EdgeInsets.all(12),
+                width: double.infinity,
+                padding: EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  record['notes'] ?? 'No notes provided',
-                  style: TextStyle(
-                    fontSize: 14,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.grey.shade50,
+                      Colors.grey.shade100,
+                    ],
                   ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.note_alt,
+                          color: Colors.grey.shade600,
+                          size: 20,
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          'Coach Notes',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1F2937),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 12),
+                    Text(
+                      record['notes'] ?? 'No notes provided',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade700,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               
               SizedBox(height: 30),
               Center(
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  child: Text('Close'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Color(0xFF3B82F6),
+                        Color(0xFF1E40AF),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Color(0xFF3B82F6).withOpacity(0.3),
+                        blurRadius: 10,
+                        offset: Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      padding: EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      'Close',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -947,8 +1617,8 @@ class _TrainingRecordViewTeacherState extends State<TrainingRecordViewTeacher> {
   }
 
   Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
+    return Container(
+      margin: EdgeInsets.only(bottom: 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -957,8 +1627,9 @@ class _TrainingRecordViewTeacherState extends State<TrainingRecordViewTeacher> {
             child: Text(
               '$label:',
               style: TextStyle(
-                fontWeight: FontWeight.w500,
-                color: Colors.grey.shade700,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade600,
+                fontSize: 14,
               ),
             ),
           ),
@@ -966,7 +1637,9 @@ class _TrainingRecordViewTeacherState extends State<TrainingRecordViewTeacher> {
             child: Text(
               value,
               style: TextStyle(
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1F2937),
+                fontSize: 14,
               ),
             ),
           ),

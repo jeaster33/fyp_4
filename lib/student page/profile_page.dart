@@ -10,9 +10,9 @@ class ProfilePage extends StatefulWidget {
   final Function? onProfileUpdated;
 
   const ProfilePage({
-    Key? key,
+    super.key,
     this.onProfileUpdated,
-  }) : super(key: key);
+  });
 
   @override
   _ProfilePageState createState() => _ProfilePageState();
@@ -455,8 +455,8 @@ class _ProfilePageState extends State<ProfilePage> {
 // Extension method to capitalize first letter
 extension StringExtension on String {
   String charAt(int index) {
-    if (this.isEmpty) return '';
-    if (index < 0 || index >= this.length) return '';
+    if (isEmpty) return '';
+    if (index < 0 || index >= length) return '';
     return this[index];
   }
 }

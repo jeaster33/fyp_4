@@ -4,7 +4,7 @@ import 'spike_performance.dart';
 import 'stamina_perfomance.dart';
 
 class PerformancePage extends StatelessWidget {
-  const PerformancePage({Key? key}) : super(key: key);
+  const PerformancePage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +21,7 @@ class PerformancePage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '🏆 Training Performance',
+              'Training Performance',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,

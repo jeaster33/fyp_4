@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 class BalancePerformancePage extends StatefulWidget {
-  const BalancePerformancePage({Key? key}) : super(key: key);
+  const BalancePerformancePage({super.key});
 
   @override
   State<BalancePerformancePage> createState() => _BalancePerformancePageState();
@@ -34,7 +34,6 @@ class _BalancePerformancePageState extends State<BalancePerformancePage> {
       final String userId = _auth.currentUser!.uid;
       print('Loading balance data for user ID: $userId');
       
-      // Remove orderBy to avoid requiring composite indexes
       QuerySnapshot snapshot = await _firestore
           .collection('balance_records')
           .where('studentId', isEqualTo: userId)
@@ -55,9 +54,13 @@ class _BalancePerformancePageState extends State<BalancePerformancePage> {
           recordDate = DateTime.now();
         }
         
+        // UPDATED: Use jugglingCount as primary field
+        int jugglingCount = data['jugglingCount'] ?? data['balanceScore'] ?? 0;
+        
         records.add({
           'id': doc.id,
-          'balanceScore': data['balanceScore'] ?? 0,
+          'jugglingCount': jugglingCount, // CHANGED: Primary field
+          'balanceScore': jugglingCount, // CHANGED: For backward compatibility
           'attempt': data['attempt'] ?? 1,
           'timestamp': data['timestamp'],
           'recordDate': recordDate,
@@ -95,6 +98,8 @@ class _BalancePerformancePageState extends State<BalancePerformancePage> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Balance Performance'),
+        backgroundColor: Colors.orange,
+        foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: Icon(Icons.refresh),
@@ -119,36 +124,36 @@ class _BalancePerformancePageState extends State<BalancePerformancePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionTitle('Balance Performance'),
+          _buildSectionTitle('Ball Juggling Performance'),
           _buildBalanceSummary(),
           SizedBox(height: 24),
           _buildBalanceChart(),
           SizedBox(height: 24),
           _buildSectionTitle('Training History'),
           SizedBox(height: 8),
-          ..._balanceRecords.reversed.map((record) => _buildBalanceRecordCard(record)).toList(),
+          ..._balanceRecords.reversed.map((record) => _buildBalanceRecordCard(record)),
         ],
       ),
     );
   }
   
   Widget _buildBalanceSummary() {
-    int bestScore = 0;
-    double averageScore = 0;
-    int latestScore = 0;
+    int bestCount = 0;
+    double averageCount = 0;
+    int latestCount = 0;
     
     if (_balanceRecords.isNotEmpty) {
-      // Find best score (maximum score)
+      // Find best count (maximum juggles)
       var bestRecord = _balanceRecords.reduce((a, b) => 
-        a['balanceScore'] > b['balanceScore'] ? a : b);
-      bestScore = bestRecord['balanceScore'];
+        a['jugglingCount'] > b['jugglingCount'] ? a : b);
+      bestCount = bestRecord['jugglingCount'];
       
-      // Calculate average score
-      averageScore = _balanceRecords.map((r) => r['balanceScore'] as int)
+      // Calculate average count
+      averageCount = _balanceRecords.map((r) => r['jugglingCount'] as int)
         .reduce((a, b) => a + b) / _balanceRecords.length;
       
-      // Get latest score
-      latestScore = _balanceRecords.last['balanceScore'];
+      // Get latest count
+      latestCount = _balanceRecords.last['jugglingCount'];
     }
     
     return Card(
@@ -159,9 +164,10 @@ class _BalancePerformancePageState extends State<BalancePerformancePage> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _buildStatItem('Best Score', '$bestScore/10', Icons.emoji_events, Colors.amber),
-            _buildStatItem('Average', '${averageScore.toStringAsFixed(1)}/10', Icons.calculate, Colors.blue),
-            _buildStatItem('Latest', '$latestScore/10', Icons.update, Colors.green),
+            // UPDATED: Changed to show juggling counts instead of "/10" ratings
+            _buildStatItem('Best Score', '$bestCount juggles', Icons.emoji_events, Colors.amber),
+            _buildStatItem('Average', '${averageCount.toStringAsFixed(1)} juggles', Icons.calculate, Colors.blue),
+            _buildStatItem('Latest', '$latestCount juggles', Icons.update, Colors.green),
           ],
         ),
       ),
@@ -181,6 +187,12 @@ class _BalancePerformancePageState extends State<BalancePerformancePage> {
       );
     }
     
+    // UPDATED: Calculate dynamic max value based on data
+    int maxJuggles = _balanceRecords.map((r) => r['jugglingCount'] as int)
+        .reduce((a, b) => a > b ? a : b);
+    double chartMaxY = (maxJuggles * 1.2).ceilToDouble(); // 20% padding above max
+    if (chartMaxY < 10) chartMaxY = 10; // Minimum scale of 10
+    
     return Container(
       height: 300,
       padding: EdgeInsets.all(16),
@@ -199,7 +211,7 @@ class _BalancePerformancePageState extends State<BalancePerformancePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Balance Score Progress (Higher is Better)',
+            'Ball Juggling Progress (Number of Successful Juggles)',
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 16,
@@ -217,8 +229,8 @@ class _BalancePerformancePageState extends State<BalancePerformancePage> {
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      reservedSize: 30,
-                      interval: 2,
+                      reservedSize: 40, // CHANGED: More space for larger numbers
+                      interval: chartMaxY / 5, // CHANGED: Dynamic interval
                       getTitlesWidget: (value, meta) {
                         return Text('${value.toInt()}');
                       },
@@ -256,19 +268,19 @@ class _BalancePerformancePageState extends State<BalancePerformancePage> {
                 minX: 0,
                 maxX: _balanceRecords.length.toDouble() - 1,
                 minY: 0,
-                maxY: 10,
+                maxY: chartMaxY, // CHANGED: Dynamic max Y
                 lineBarsData: [
                   LineChartBarData(
                     spots: List.generate(
                       _balanceRecords.length,
-                      (i) => FlSpot(i.toDouble(), _balanceRecords[i]['balanceScore'].toDouble()),
+                      (i) => FlSpot(i.toDouble(), _balanceRecords[i]['jugglingCount'].toDouble()),
                     ),
                     isCurved: true,
-                    color: Colors.green,
+                    color: Colors.orange, // CHANGED: Orange for balance training
                     barWidth: 3,
                     isStrokeCapRound: true,
                     dotData: FlDotData(show: true),
-                    belowBarData: BarAreaData(show: true, color: Colors.green.withOpacity(0.2)),
+                    belowBarData: BarAreaData(show: true, color: Colors.orange.withOpacity(0.2)),
                   ),
                 ],
               ),
@@ -280,7 +292,8 @@ class _BalancePerformancePageState extends State<BalancePerformancePage> {
   }
   
   Widget _buildBalanceRecordCard(Map<String, dynamic> record) {
-    Color scoreColor = _getBalanceScoreColor(record['balanceScore']);
+    int jugglingCount = record['jugglingCount'];
+    Color scoreColor = _getJugglingCountColor(jugglingCount); // UPDATED: New color function
     
     return Card(
       margin: EdgeInsets.only(bottom: 10),
@@ -288,10 +301,10 @@ class _BalancePerformancePageState extends State<BalancePerformancePage> {
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: scoreColor.withOpacity(0.2),
-          child: Icon(Icons.balance, color: scoreColor),
+          child: Icon(Icons.sports_handball, color: scoreColor), // CHANGED: Ball icon
         ),
         title: Text(
-          'Balance: ${record['balanceScore']}/10',
+          'Juggles: $jugglingCount', // UPDATED: Show juggling count
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Column(
@@ -299,7 +312,7 @@ class _BalancePerformancePageState extends State<BalancePerformancePage> {
           children: [
             SizedBox(height: 4),
             Text('Course: ${record['courseName']}'),
-            Text('Week: ${record['weekTimestamp']} - Attempt: ${record['attempt']}'),
+            Text('Week: ${record['weekTimestamp']}'),
             if (record['notes'].isNotEmpty)
               Text(
                 'Notes: ${record['notes']}',
@@ -315,12 +328,13 @@ class _BalancePerformancePageState extends State<BalancePerformancePage> {
     );
   }
   
-  Color _getBalanceScoreColor(int score) {
-    if (score >= 9) return Colors.green;
-    if (score >= 7) return Colors.lightGreen;
-    if (score >= 5) return Colors.orange;
-    if (score >= 3) return Colors.deepOrange;
-    return Colors.red;
+  // UPDATED: New color function for juggling counts
+  Color _getJugglingCountColor(int count) {
+    if (count >= 50) return Colors.green;        // Excellent (50+ juggles)
+    if (count >= 30) return Colors.lightGreen;   // Very Good (30-49 juggles)
+    if (count >= 20) return Colors.orange;       // Good (20-29 juggles)
+    if (count >= 10) return Colors.deepOrange;   // Fair (10-19 juggles)
+    return Colors.red;                           // Needs Practice (< 10 juggles)
   }
   
   Widget _buildEmptyState(String message) {
@@ -329,7 +343,7 @@ class _BalancePerformancePageState extends State<BalancePerformancePage> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.balance,
+            Icons.sports_handball, // CHANGED: Ball icon
             size: 80,
             color: Colors.grey.shade400,
           ),
@@ -344,7 +358,7 @@ class _BalancePerformancePageState extends State<BalancePerformancePage> {
           ),
           SizedBox(height: 8),
           Text(
-            'Complete balance training sessions to see your progress',
+            'Complete ball juggling training sessions to see your progress',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey.shade500,
@@ -377,9 +391,10 @@ class _BalancePerformancePageState extends State<BalancePerformancePage> {
         Text(
           value,
           style: TextStyle(
-            fontSize: 18,
+            fontSize: 16, // CHANGED: Smaller font to fit longer text
             fontWeight: FontWeight.bold,
           ),
+          textAlign: TextAlign.center, // ADDED: Center align
         ),
         SizedBox(height: 4),
         Text(
